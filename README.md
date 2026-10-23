@@ -14,6 +14,12 @@ flowchart LR
 
 Luồng làm việc nằm trong [`skills/engineering/SKILL.md`](skills/engineering/SKILL.md) và [`skills/marketing/SKILL.md`](skills/marketing/SKILL.md), không phải một scheduler tự chạy. Theo quy trình mặc định, dispatcher không tự đọc toàn bộ codebase/diff hay làm thay worker; có thể xử lý trực tiếp việc nhỏ, khi người dùng yêu cầu, hoặc khi cần đào sâu sau lỗi/thiếu bằng chứng.
 
+## Xem nhanh
+
+<img src="docs/images/tui-roles.png" alt="Màn Roles của 9r-config với các cột role, combo, effort và model ưu tiên; role frontend đang được chọn" width="100%">
+
+`9r-config` cho phép xem và chỉnh combo, effort của từng worker ngay trong terminal. Màn Roles hiển thị model ưu tiên và đánh dấu các role đã tuỳ chỉnh bằng `*`.
+
 ## Yêu cầu
 
 | Thành phần | Yêu cầu |
@@ -134,6 +140,10 @@ Sau khi sửa danh sách, chạy lại `python3 9router/apply-combos.py` hoặc 
 
 ### Postiz — tuỳ chọn
 
+![Luồng Marketing từ brief qua tạo nội dung, kiểm định và người dùng duyệt đến bài đăng Postiz](docs/images/postiz-flow.png)
+
+Đăng bài mặc định là `draft` và luôn hỏi người dùng xác nhận trước khi upload, đăng hoặc sửa bài trên Postiz.
+
 Không cần Postiz để chạy worker kỹ thuật hoặc tạo nội dung. Nếu dùng công cụ Postiz, sao chép mẫu [`config/postiz.env.example`](config/postiz.env.example):
 
 ```bash
@@ -164,6 +174,20 @@ Giao diện terminal để chỉnh từng worker mà không phải sửa JSON:
 - **Ưu tiên effort:** `NINER_EFFORT` > `roles.json` > mặc định `max`.
 
 Dùng không tương tác (script): `9r-config set <role> [--combo w-x] [--effort e]`, `9r-config reset <role>`, `9r-config combo <tên> --set m1,m2 [--no-apply]`, `9r-config test <model>`. Biến `NINER_COMPANY_DIR` và `NINER_ROUTER_URL` đổi thư mục cấu hình và địa chỉ 9router.
+
+![Màn Roles của 9r-config với role frontend được chọn, combo w-ui, effort xhigh và model ưu tiên](docs/images/tui-roles.png)
+
+*Màn Roles có các cột role, combo, effort và model ưu tiên; `e` đổi effort, `c` đổi combo, `Enter` mở chuỗi model.*
+
+![Màn Combo w-ui của 9r-config hiển thị thứ tự model ưu tiên đến fallback và cột kết quả test](docs/images/tui-combo.png)
+
+*Màn Combo hiển thị thứ tự fallback và kết quả test; `K`/`J` đổi thứ tự, `t` thử model đang chọn, `s` lưu.*
+
+![Lớp Trợ giúp của 9r-config hiển thị phím tắt màn Roles, các lệnh CLI tương đương và nơi lưu cấu hình](docs/images/tui-help.png)
+
+*Nhấn `?` để mở lớp Trợ giúp với phím tắt và các lệnh CLI có thể copy.*
+
+<small>Ảnh TUI được dựng từ phiên `9r-config` chạy thật trong PTY với dữ liệu mẫu.</small>
 
 ## Các role worker
 
@@ -216,6 +240,12 @@ Bạn có thể tự thêm các skill mà mình có quyền sử dụng vào:
 ## Habblaud — văn phòng ảo tuỳ chọn
 
 [Habblaud](https://github.com/marmottajr/habblaud) là **dự án bên thứ ba, giấy phép MIT**, cung cấp văn phòng ảo hiển thị agent Claude Code / Codex. Nó không cần thiết để chạy `9r`.
+
+![Sơ đồ tích hợp Habblaud với dispatcher, worker 9r và Codex qua thư mục phiên chỉ đọc, kèm patch bỏ qua observer của claude-mem](docs/images/habblaud-integration.png)
+
+![Văn phòng pixel Habblaud ở chế độ mô phỏng với các phòng dự án, danh sách agent và bảng hoạt động](docs/images/habblaud-overview.png)
+
+Ảnh: Habblaud (marmottajr/habblaud, giấy phép MIT, © Márcio Junior), chế độ mô phỏng của upstream.
 
 Repo này không chứa toàn bộ Habblaud, chỉ có script [`habblaud/setup-habblaud.sh`](habblaud/setup-habblaud.sh), commit upstream được ghim trong [`habblaud/UPSTREAM_COMMIT`](habblaud/UPSTREAM_COMMIT) và một patch nhỏ: bỏ qua phiên observer của `claude-mem` có thư mục làm việc dưới `.claude-mem/observer-sessions`.
 

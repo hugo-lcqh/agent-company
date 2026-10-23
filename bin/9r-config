@@ -329,7 +329,7 @@ def c_attr(pair_id, extra=0, fallback=0):
 def effort_attr(effort, selected=False):
     pair_id, extra, fallback = EFFORT_STYLES.get(effort, (PAIR_WHITE, 0, 0))
     base = c_attr(pair_id, extra, fallback)
-    return (base | curses.A_REVERSE | curses.A_BOLD) if selected else base
+    return c_attr(PAIR_SELECTED, curses.A_BOLD, curses.A_REVERSE | curses.A_BOLD) if selected else base
 
 def model_provider(model):
     text = str(model)
@@ -340,13 +340,13 @@ def model_attr(model, first=False, selected=False):
     pair_id = PAIR_CYAN if prov == 'cx' else PAIR_YELLOW if prov == 'ag' else PAIR_WHITE
     weight = curses.A_BOLD if first else 0
     base = c_attr(pair_id, weight, weight)
-    return (base | curses.A_REVERSE | curses.A_BOLD) if selected else base
+    return c_attr(PAIR_SELECTED, curses.A_BOLD, curses.A_REVERSE | curses.A_BOLD) if selected else base
 
 def combo_pair(name):
     return COMBO_PAIRS[name] if name in COMBO_PAIRS else COMBO_PALETTE[sum(ord(c) for c in str(name)) % len(COMBO_PALETTE)]
 def combo_attr(name, selected=False):
     base = c_attr(combo_pair(name), curses.A_BOLD, curses.A_BOLD)
-    return (base | curses.A_REVERSE | curses.A_BOLD) if selected else base
+    return c_attr(PAIR_SELECTED, curses.A_BOLD, curses.A_REVERSE | curses.A_BOLD) if selected else base
 
 def notice_kind(text):
     low = str(text or '').casefold()
@@ -426,7 +426,7 @@ def format_role_row(role, combo, effort, first_model, width, overridden=False, s
     line = pad(prefix + sep.join(parts), max(1, width - 1), el)
     r_attr = c_attr(PAIR_YELLOW, curses.A_BOLD, curses.A_BOLD) if overridden else (curses.A_BOLD if selected else 0)
     if selected:
-        r_attr |= curses.A_REVERSE | curses.A_BOLD
+        r_attr = c_attr(PAIR_SELECTED, curses.A_BOLD, curses.A_REVERSE | curses.A_BOLD)
     col = len(prefix)
     cells = [(col, role_str, r_attr)]
     col += len(role_str) + len(sep)
@@ -470,8 +470,7 @@ def format_combo_row(index, model, width, test_result=None, selected=False, unic
     s_attr = c_attr(PAIR_GREEN, curses.A_BOLD, curses.A_BOLD) if badge_kind == 'ok' else (
         c_attr(PAIR_RED, curses.A_BOLD, curses.A_BOLD) if badge_kind == 'err' else c_attr(PAIR_WHITE, curses.A_DIM, curses.A_DIM))
     if selected:
-        idx_attr |= curses.A_REVERSE | curses.A_BOLD
-        s_attr |= curses.A_REVERSE | curses.A_BOLD
+        idx_attr = s_attr = c_attr(PAIR_SELECTED, curses.A_BOLD, curses.A_REVERSE | curses.A_BOLD)
     col = len(prefix)
     cells = [(col, idx_str, idx_attr)]
     col += len(idx_str) + len(sep)
@@ -621,7 +620,7 @@ def help_screen(screen, context='roles', role='<role>', combo='<tên>', status=N
         _, width = screen.getmaxyx()
         cells = [[(0, clip(ln, max(1, width - 1)), c_attr(PAIR_YELLOW if ln.startswith('[') else PAIR_CYAN, curses.A_BOLD, curses.A_BOLD))]
                  if ln.startswith('[') or '9r-config ' in ln or '9r <role>' in ln else [] for ln in lines]
-        draw(screen, 'Trợ giúp (?)', lines, 0, f'Đang chọn: role={role} combo={combo} — có thể copy các lệnh CLI bên trên',
+        draw(screen, 'Trợ giúp (?)', lines, -1, f'Đang chọn: role={role} combo={combo} — có thể copy các lệnh CLI bên trên',
              keys_bar('help', width), hint='Bấm phím bất kỳ để đóng lớp trợ giúp và quay lại màn trước', row_cells=cells, status=status)
         if get_key(screen) != curses.KEY_RESIZE:
             return

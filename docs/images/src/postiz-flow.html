@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1280, initial-scale=1.0" />
+  <title>Từ brief đến bài đăng — agent-company Marketing &amp; Postiz Flow</title>
+  <style>
+    :root {
+      --bg-start: #0f1424;
+      --bg-mid: #141930;
+      --bg-end: #1b1f3a;
+      --card-bg: rgba(20, 27, 49, 0.88);
+      --card-inner: rgba(11, 16, 30, 0.72);
+      --text-main: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+
+      /* 5 Accent Colors: Tím, Cyan, Vàng, Xanh lá, Hồng */
+      --c1-main: #a855f7;
+      --c1-light: #d8b4fe;
+      --c1-soft: rgba(168, 85, 247, 0.14);
+      --c1-border: rgba(168, 85, 247, 0.42);
+
+      --c2-main: #06b6d4;
+      --c2-light: #67e8f9;
+      --c2-soft: rgba(6, 182, 212, 0.14);
+      --c2-border: rgba(6, 182, 212, 0.42);
+
+      --c3-main: #f59e0b;
+      --c3-light: #fde68a;
+      --c3-soft: rgba(245, 158, 11, 0.14);
+      --c3-border: rgba(245, 158, 11, 0.42);
+
+      --c4-main: #10b981;
+      --c4-light: #6ee7b7;
+      --c4-soft: rgba(16, 185, 129, 0.15);
+      --c4-border: rgba(16, 185, 129, 0.55);
+
+      --c5-main: #ec4899;
+      --c5-light: #f9a8d4;
+      --c5-soft: rgba(236, 72, 153, 0.14);
+      --c5-border: rgba(236, 72, 153, 0.42);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 1280px;
+      height: 720px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: -apple-system, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-mid) 52%, var(--bg-end) 100%);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .canvas {
+      position: relative;
+      width: 1280px;
+      height: 720px;
+      padding: 22px 36px 14px 36px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    /* Subtle decorative grid & radial glow */
+    .bg-decor {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        radial-gradient(circle at 14% 18%, rgba(168, 85, 247, 0.12) 0%, transparent 34%),
+        radial-gradient(circle at 50% 52%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 76% 24%, rgba(16, 185, 129, 0.12) 0%, transparent 32%),
+        radial-gradient(circle at 90% 78%, rgba(236, 72, 153, 0.10) 0%, transparent 34%);
+    }
+
+    /* Header */
+    .header {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+      color: #67e8f9;
+    }
+
+    .eyebrow-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22d3ee;
+      box-shadow: 0 0 8px #22d3ee;
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+      color: #ffffff;
+      line-height: 1.15;
+    }
+
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .header-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(30, 41, 59, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: #e2e8f0;
+    }
+
+    .header-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Main 5-Step Flow Row */
+    .flow-wrapper {
+      position: relative;
+      z-index: 2;
+      padding-top: 26px; /* Space for Step 4 approval badge */
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      height: 518px;
+    }
+
+    .step-card {
+      position: relative;
+      width: 220px;
+      height: 492px;
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 14px 13px 12px 13px;
+      display: flex;
+      flex-direction: column;
+      border: 1.5px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 12px 28px rgba(5, 8, 20, 0.45);
+    }
+
+    .step-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 14px;
+      right: 14px;
+      height: 3px;
+      border-radius: 0 0 4px 4px;
+    }
+
+    /* Card theme variants */
+    .card-1 {
+      border-color: var(--c1-border);
+      background: linear-gradient(180deg, rgba(168, 85, 247, 0.10) 0%, var(--card-bg) 32%);
+    }
+    .card-1::before { background: var(--c1-main); }
+
+    .card-2 {
+      border-color: var(--c2-border);
+      background: linear-gradient(180deg, rgba(6, 182, 212, 0.10) 0%, var(--card-bg) 32%);
+    }
+    .card-2::before { background: var(--c2-main); }
+
+    .card-3 {
+      border-color: var(--c3-border);
+      background: linear-gradient(180deg, rgba(245, 158, 11, 0.10) 0%, var(--card-bg) 32%);
+    }
+    .card-3::before { background: var(--c3-main); }
+
+    .card-4 {
+      border-color: var(--c4-border);
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.14) 0%, var(--card-bg) 36%);
+      box-shadow: 0 12px 32px rgba(16, 185, 129, 0.16), 0 0 0 1px rgba(16, 185, 129, 0.25);
+    }
+    .card-4::before { background: var(--c4-main); }
+
+    .card-5 {
+      border-color: var(--c5-border);
+      background: linear-gradient(180deg, rgba(236, 72, 153, 0.10) 0%, var(--card-bg) 32%);
+    }
+    .card-5::before { background: var(--c5-main); }
+
+    /* Prominent approval badge on Step 4 */
+    .approval-badge {
+      position: absolute;
+      top: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      border: 1.5px solid #a7f3d0;
+      color: #ffffff;
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
+      z-index: 5;
+    }
+
+    .approval-badge svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    /* Card Top Header */
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .step-num {
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .card-1 .step-num { background: var(--c1-soft); color: var(--c1-light); border: 1px solid var(--c1-border); }
+    .card-2 .step-num { background: var(--c2-soft); color: var(--c2-light); border: 1px solid var(--c2-border); }
+    .card-3 .step-num { background: var(--c3-soft); color: var(--c3-light); border: 1px solid var(--c3-border); }
+    .card-4 .step-num { background: var(--c4-soft); color: var(--c4-light); border: 1px solid var(--c4-border); }
+    .card-5 .step-num { background: var(--c5-soft); color: var(--c5-light); border: 1px solid var(--c5-border); }
+
+    .icon-box {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .icon-box svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .card-1 .icon-box { background: var(--c1-soft); color: var(--c1-light); border: 1px solid var(--c1-border); }
+    .card-2 .icon-box { background: var(--c2-soft); color: var(--c2-light); border: 1px solid var(--c2-border); }
+    .card-3 .icon-box { background: var(--c3-soft); color: var(--c3-light); border: 1px solid var(--c3-border); }
+    .card-4 .icon-box { background: var(--c4-soft); color: var(--c4-light); border: 1px solid var(--c4-border); }
+    .card-5 .icon-box { background: var(--c5-soft); color: var(--c5-light); border: 1px solid var(--c5-border); }
+
+    /* Card Title & Subtitle */
+    .card-title {
+      font-size: 13.5px;
+      font-weight: 800;
+      line-height: 1.28;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .card-subtitle {
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 9px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .card-1 .card-subtitle { color: var(--c1-light); }
+    .card-2 .card-subtitle { color: var(--c2-light); }
+    .card-3 .card-subtitle { color: var(--c3-light); }
+    .card-4 .card-subtitle { color: var(--c4-light); }
+    .card-5 .card-subtitle { color: var(--c5-light); }
+
+    /* Card Inner Blocks */
+    .block-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      flex: 1;
+    }
+
+    .sub-block {
+      background: var(--card-inner);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: 8px;
+      padding: 7px 9px;
+    }
+
+    .sub-block-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .sub-block-desc {
+      font-size: 10.8px;
+      line-height: 1.35;
+      color: var(--text-secondary);
+    }
+
+    .code-inline {
+      font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
+      font-size: 10px;
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: rgba(148, 163, 184, 0.15);
+      color: #f8fafc;
+    }
+
+    .combo-tag {
+      font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
+      font-size: 9.5px;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #cbd5e1;
+      flex-shrink: 0;
+    }
+
+    /* Card Footer Tag */
+    .card-foot {
+      margin-top: 8px;
+      padding: 6px 8px;
+      border-radius: 7px;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 0.1px;
+    }
+
+    .card-1 .card-foot { background: var(--c1-soft); color: var(--c1-light); border: 1px solid rgba(168, 85, 247, 0.28); }
+    .card-2 .card-foot { background: var(--c2-soft); color: var(--c2-light); border: 1px solid rgba(6, 182, 212, 0.28); }
+    .card-3 .card-foot { background: var(--c3-soft); color: var(--c3-light); border: 1px solid rgba(245, 158, 11, 0.28); }
+    .card-4 .card-foot { background: var(--c4-soft); color: var(--c4-light); border: 1px solid rgba(16, 185, 129, 0.32); }
+    .card-5 .card-foot { background: var(--c5-soft); color: var(--c5-light); border: 1px solid rgba(236, 72, 153, 0.28); }
+
+    /* Arrow Connectors between cards */
+    .arrow-col {
+      width: 27px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .arrow-col svg {
+      width: 25px;
+      height: 44px;
+      overflow: visible;
+    }
+
+    /* Bottom Status Strip & Footer */
+    .bottom-bar {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .bottom-notes {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .note-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .note-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .note-dot-amber { background: #f59e0b; }
+    .note-dot-emerald { background: #10b981; }
+
+    .footer-brand {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #cbd5e1;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="canvas" role="img" aria-label="Sơ đồ luồng Từ brief đến bài đăng của team Marketing với Postiz">
+    <div class="bg-decor"></div>
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          <span>QUY TRÌNH PHÒNG MARKETING · SKILL MARKETING &amp; MCP COMPANY-TOOLS</span>
+        </div>
+        <h1 class="title">Từ brief đến bài đăng</h1>
+      </div>
+      <div class="header-right">
+        <div class="header-pills">
+          <span class="meta-pill">Claude Code: Dispatcher</span>
+          <span class="meta-pill">Worker 9r qua 9router (cx/ · ag/)</span>
+          <span class="meta-pill">Postiz Public API</span>
+        </div>
+        <div class="header-sub">Điều phối qua Handoff Manifest · Kiểm định tự động · Người dùng duyệt trước khi đăng</div>
+      </div>
+    </header>
+
+    <!-- 5-Step Flow -->
+    <main class="flow-wrapper">
+      <!-- BƯỚC 1: TÍM -->
+      <section class="step-card card-1" aria-label="Bước 1: Bạn giao brief cho Claude (dispatcher)">
+        <div class="card-top">
+          <span class="step-num">Bước 01</span>
+          <div class="icon-box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="8" y1="13" x2="16" y2="13"></line>
+              <line x1="8" y1="17" x2="13" y2="17"></line>
+            </svg>
+          </div>
+        </div>
+
+        <h2 class="card-title">(1) Bạn giao brief cho Claude (dispatcher)</h2>
+        <div class="card-subtitle">Phiên chính Claude Code điều phối</div>
+
+        <div class="block-list">
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>Tiếp nhận yêu cầu</span>
+              <span class="combo-tag">SKILL.md</span>
+            </div>
+            <div class="sub-block-desc">
+              Bạn gửi mục tiêu chiến dịch hoặc yêu cầu bài viết; bám <span class="code-inline">brand/BRAND.md</span> &amp; <span class="code-inline">brand/rules.json</span> nếu có.
+            </div>
+          </div>
+
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>Khởi tạo vùng chạy</span>
+              <span class="combo-tag">$RUN</span>
+            </div>
+            <div class="sub-block-desc">
+              Tạo thư mục <span class="code-inline">~/.cache/company-runs/&lt;dự-án&gt;-&lt;slug&gt;</span> lưu Campaign Brief và manifest.
+            </div>
+          </div>
+
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>Giao việc qua CLI 9r</span>
+              <span class="combo-tag">9router</span>
+            </div>
+            <div class="sub-block-desc">
+              Gọi <span class="code-inline">9r &lt;role&gt; "&lt;brief&gt;"</span> chạy nền trên quota Codex / Antigravity; chỉ đọc Handoff Manifest.
+            </div>
+          </div>
+        </div>
+
+        <div class="card-foot">Đầu ra: Lệnh điều phối 9r + $RUN</div>
+      </section>
+
+      <!-- Arrow 1 -> 2 -->
+      <div class="arrow-col" aria-hidden="true">
+        <svg viewBox="0 0 25 44" fill="none">
+          <defs>
+            <linearGradient id="g12" x1="0" y1="22" x2="25" y2="22" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#a855f7" />
+              <stop offset="100%" stop-color="#06b6d4" />
+            </linearGradient>
+          </defs>
+          <line x1="2" y1="22" x2="18" y2="22" stroke="url(#g12)" stroke-width="2.5" stroke-linecap="round" />
+          <polyline points="13,16 21,22 13,28" stroke="#06b6d4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+
+      <!-- BƯỚC 2: CYAN -->
+      <section class="step-card card-2" aria-label="Bước 2: Team Marketing: strategist, content, seo_writer, social_growth, design">
+        <div class="card-top">
+          <span class="step-num">Bước 02</span>
+          <div class="icon-box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="6" cy="6" r="3"></circle>
+              <circle cx="18" cy="6" r="3"></circle>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="18" r="3"></circle>
+              <line x1="9" y1="6" x2="15" y2="6"></line>
+              <line x1="6" y1="9" x2="6" y2="15"></line>
+              <line x1="18" y1="9" x2="18" y2="15"></line>
+            </svg>
+          </div>
+        </div>
+
+        <h2 class="card-title">(2) Team Marketing</h2>
+        <div class="card-subtitle">strategist → content → seo_writer / social_growth / design</div>
+
+        <div class="block-list">
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>1. strategist</span>
+              <span class="combo-tag">w-code</span>
+            </div>
+            <div class="sub-block-desc">
+              Xác định mục tiêu, ICP, USP, content pillar; ghi Campaign Brief vào <span class="code-inline">$RUN/brief.md</span>.
+            </div>
+          </div>
+
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>2. content → seo_writer</span>
+              <span class="combo-tag">w-code · w-fast</span>
+            </div>
+            <div class="sub-block-desc">
+              Viết <span class="code-inline">posts/&lt;id&gt;.md</span> (PAS/AIDA); tối ưu search intent, H1/H2, slug kebab-case, meta 50–160 ký tự.
+            </div>
+          </div>
+
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>3. social_growth &amp; design</span>
+              <span class="combo-tag">w-ui</span>
+            </div>
+            <div class="sub-block-desc">
+              Chạy song song: hook 3s (A/B), kịch bản video, chuỗi Threads/X; prompt ảnh <span class="code-inline">assets/prompts/</span> &amp; banner tự chứa.
+            </div>
+          </div>
+        </div>
+
+        <div class="card-foot">Đầu ra: posts/*.md + assets/*</div>
+      </section>
+
+      <!-- Arrow 2 -> 3 -->
+      <div class="arrow-col" aria-hidden="true">
+        <svg viewBox="0 0 25 44" fill="none">
+          <defs>
+            <linearGradient id="g23" x1="0" y1="22" x2="25" y2="22" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#06b6d4" />
+              <stop offset="100%" stop-color="#f59e0b" />
+            </linearGradient>
+          </defs>
+          <line x1="2" y1="22" x2="18" y2="22" stroke="url(#g23)" stroke-width="2.5" stroke-linecap="round" />
+          <polyline points="13,16 21,22 13,28" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+
+      <!-- BƯỚC 3: VÀNG -->
+      <section class="step-card card-3" aria-label="Bước 3: qc + run_marketing_gate kiểm định">
+        <div class="card-top">
+          <span class="step-num">Bước 03</span>
+          <div class="icon-box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <polyline points="9 12 11 14 15 10"></polyline>
+            </svg>
+          </div>
+        </div>
+
+        <h2 class="card-title">(3) qc + run_marketing_gate kiểm định</h2>
+        <div class="card-subtitle">Worker qc (w-think) &amp; Gate tự động</div>
+
+        <div class="block-list">
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>Đối soát 6 tiêu chí QC</span>
+              <span class="combo-tag">w-think</span>
+            </div>
+            <div class="sub-block-desc">
+              Fact-check (không bịa số liệu), đúng tone thương hiệu, thông điệp nhất quán, CTA rõ, chuẩn kích thước, tự chứa.
+            </div>
+          </div>
+
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>run_marketing_gate</span>
+              <span class="combo-tag">MCP Gate</span>
+            </div>
+            <div class="sub-block-desc">
+              Kiểm tra cấu trúc H1/H2, slug <span class="code-inline">kebab-case</span>, meta 50–160 ký tự, cấm URL ngoài (<span class="code-inline">http/https</span>).
+            </div>
+          </div>
+
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>Xử lý lỗi chặt chẽ</span>
+              <span class="combo-tag">Vòng lặp</span>
+            </div>
+            <div class="sub-block-desc">
+              Nếu <span class="code-inline">failed</span> → ghi lỗi vào <span class="code-inline">risks</span>, giao lại đúng vai sửa rồi chạy <span class="code-inline">qc</span> lại đến khi đạt.
+            </div>
+          </div>
+        </div>
+
+        <div class="card-foot">Đầu ra: Bài &amp; asset đạt chuẩn QC</div>
+      </section>
+
+      <!-- Arrow 3 -> 4 -->
+      <div class="arrow-col" aria-hidden="true">
+        <svg viewBox="0 0 25 44" fill="none">
+          <defs>
+            <linearGradient id="g34" x1="0" y1="22" x2="25" y2="22" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#f59e0b" />
+              <stop offset="100%" stop-color="#10b981" />
+            </linearGradient>
+          </defs>
+          <line x1="2" y1="22" x2="18" y2="22" stroke="url(#g34)" stroke-width="2.5" stroke-linecap="round" />
+          <polyline points="13,16 21,22 13,28" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+
+      <!-- BƯỚC 4: XANH LÁ + HUY HIỆU DUYỆT -->
+      <section class="step-card card-4" aria-label="Bước 4: Bạn duyệt trước khi đăng, MCP company-tools upload_postiz_asset và publish_to_postiz">
+        <div class="approval-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <polyline points="16 11 18 13 22 9"></polyline>
+          </svg>
+          <span>Bạn duyệt trước khi đăng</span>
+        </div>
+
+        <div class="card-top">
+          <span class="step-num">Bước 04</span>
+          <div class="icon-box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+        </div>
+
+        <h2 class="card-title">(4) MCP company-tools: upload_postiz_asset → publish_to_postiz</h2>
+        <div class="card-subtitle">Trình tóm tắt &amp; DỪNG chờ bạn đồng ý</div>
+
+        <div class="block-list">
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>1. get_postiz_channels</span>
+              <span class="combo-tag">Integrations</span>
+            </div>
+            <div class="sub-block-desc">
+              Claude tự gọi (không qua worker) để lấy danh sách kênh và <span class="code-inline">integration_id</span> thật.
+            </div>
+          </div>
+
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>2. upload_postiz_asset</span>
+              <span class="combo-tag">Media Cache</span>
+            </div>
+            <div class="sub-block-desc">
+              Upload từng ảnh/banner lên Postiz, lưu ánh xạ <span class="code-inline">id → path</span> vào <span class="code-inline">postiz_media.json</span>.
+            </div>
+          </div>
+
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>3. publish_to_postiz</span>
+              <span class="combo-tag">draft / schedule</span>
+            </div>
+            <div class="sub-block-desc">
+              Mặc định <span class="code-inline">post_type="draft"</span>; chỉ dùng <span class="code-inline">"schedule"</span> khi bạn nói rõ "lên lịch luôn".
+            </div>
+          </div>
+        </div>
+
+        <div class="card-foot">Sửa bài: list_postiz_posts → edit_postiz_post</div>
+      </section>
+
+      <!-- Arrow 4 -> 5 -->
+      <div class="arrow-col" aria-hidden="true">
+        <svg viewBox="0 0 25 44" fill="none">
+          <defs>
+            <linearGradient id="g45" x1="0" y1="22" x2="25" y2="22" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#10b981" />
+              <stop offset="100%" stop-color="#ec4899" />
+            </linearGradient>
+          </defs>
+          <line x1="2" y1="22" x2="18" y2="22" stroke="url(#g45)" stroke-width="2.5" stroke-linecap="round" />
+          <polyline points="13,16 21,22 13,28" stroke="#ec4899" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+
+      <!-- BƯỚC 5: HỒNG -->
+      <section class="step-card card-5" aria-label="Bước 5: Postiz lên lịch đăng lên các kênh bạn đã kết nối">
+        <div class="card-top">
+          <span class="step-num">Bước 05</span>
+          <div class="icon-box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+              <path d="M9 16l2 2 4-4"></path>
+            </svg>
+          </div>
+        </div>
+
+        <h2 class="card-title">(5) Postiz lên lịch đăng lên các kênh bạn đã kết nối</h2>
+        <div class="card-subtitle">Postiz Self-Hosted &amp; Báo cáo kết quả</div>
+
+        <div class="block-list">
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>Chuẩn hoá múi giờ</span>
+              <span class="combo-tag">+07:00</span>
+            </div>
+            <div class="sub-block-desc">
+              Chuẩn hoá thời gian đăng theo ISO-8601 (<span class="code-inline">Asia/Ho_Chi_Minh</span>); lưu <span class="code-inline">DRAFT</span> hoặc hàng đợi <span class="code-inline">QUEUE</span>.
+            </div>
+          </div>
+
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>Đăng lên kênh đã kết nối</span>
+              <span class="combo-tag">~30 bài/giờ</span>
+            </div>
+            <div class="sub-block-desc">
+              Phân phối tới các kênh bạn đã kết nối trên Postiz; lô lớn được chia theo giờ để tránh chạm giới hạn.
+            </div>
+          </div>
+
+          <div class="sub-block">
+            <div class="sub-block-title">
+              <span>Xác nhận &amp; Báo cáo</span>
+              <span class="combo-tag">list_postiz_posts</span>
+            </div>
+            <div class="sub-block-desc">
+              Đối chiếu bằng <span class="code-inline">list_postiz_posts</span>; trả báo cáo gồm Post ID, Channel ID, trạng thái và việc còn chờ.
+            </div>
+          </div>
+        </div>
+
+        <div class="card-foot">Đầu ra: Post ID · Channel ID · Trạng thái</div>
+      </section>
+    </main>
+
+    <!-- Bottom bar & Footer -->
+    <footer class="bottom-bar">
+      <div class="bottom-notes">
+        <span class="note-item">
+          <span class="note-dot note-dot-amber"></span>
+          <span><strong>Kiểm định chặt:</strong> Bài hoặc asset lỗi ở bước 3 sẽ quay lại bước 2 đúng vai để sửa và QC lại.</span>
+        </span>
+        <span class="note-item">
+          <span class="note-dot note-dot-emerald"></span>
+          <span><strong>An toàn khi đăng:</strong> Luôn hỏi xác nhận trước khi gọi các lệnh upload, đăng hoặc sửa bài trên Postiz.</span>
+        </span>
+      </div>
+      <div class="footer-brand">agent-company · 9r + 9router + Postiz</div>
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1280, initial-scale=1.0" />
+  <title>Habblaud × 9r: xem cả team agent làm việc</title>
+  <style>
+    :root {
+      --bg-deep: #090d16;
+      --bg-panel: #111827;
+      --bg-panel-alt: #162033;
+      --bg-card: #1b273d;
+      --border-subtle: #283652;
+      --border-bright: #3b527e;
+      --text-main: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --accent-cyan: #38bdf8;
+      --accent-blue: #60a5fa;
+      --accent-indigo: #818cf8;
+      --accent-purple: #c084fc;
+      --accent-pink: #f472b6;
+      --accent-emerald: #34d399;
+      --accent-amber: #fbbf24;
+      --accent-orange: #fb923c;
+      --accent-red: #f87171;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 1280px;
+      height: 720px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: var(--bg-deep);
+      background-image:
+        radial-gradient(circle at 14% 18%, rgba(56, 189, 248, 0.10) 0%, transparent 40%),
+        radial-gradient(circle at 84% 22%, rgba(192, 132, 252, 0.10) 0%, transparent 42%),
+        radial-gradient(circle at 50% 85%, rgba(52, 211, 153, 0.07) 0%, transparent 45%),
+        linear-gradient(180deg, #090d16 0%, #0d1424 100%);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .canvas {
+      width: 1280px;
+      height: 720px;
+      padding: 16px 24px 14px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+      position: relative;
+    }
+
+    /* Subtle pixel grid overlay in background */
+    .canvas::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, rgba(148, 163, 184, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
+      background-size: 16px 16px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* HEADER */
+    .header {
+      position: relative;
+      z-index: 1;
+      height: 66px;
+      background: linear-gradient(90deg, rgba(17, 24, 39, 0.95) 0%, rgba(22, 32, 51, 0.92) 100%);
+      border: 1px solid var(--border-subtle);
+      border-left: 4px solid var(--accent-cyan);
+      border-radius: 10px;
+      padding: 9px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pixel-badge {
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      line-height: 1.15;
+    }
+
+    h1 .hl-cyan {
+      color: var(--accent-cyan);
+    }
+
+    h1 .hl-emerald {
+      color: var(--accent-emerald);
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .meta-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-bright);
+      border-radius: 6px;
+      padding: 6px 11px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+    }
+
+    .meta-pill .meta-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .meta-pill .meta-val {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-emerald);
+    }
+
+    /* MAIN 3-COLUMN LAYOUT */
+    .main-grid {
+      position: relative;
+      z-index: 1;
+      height: 560px;
+      display: grid;
+      grid-template-columns: 356px 258px 594px;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, 0.92);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 7px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .panel-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background: var(--accent-cyan);
+      color: #090d16;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .panel-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      background: rgba(148, 163, 184, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* LEFT COLUMN: SOURCES & SESSION DIRS */
+    .source-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .source-card {
+      background: var(--bg-panel-alt);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 7px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .source-card.dispatcher {
+      border-left: 3px solid var(--accent-amber);
+    }
+
+    .source-card.workers {
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    .source-card.codex {
+      border-left: 3px solid var(--accent-emerald);
+    }
+
+    .source-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .source-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    .dot-amber { background: var(--accent-amber); }
+    .dot-cyan { background: var(--accent-cyan); }
+    .dot-emerald { background: var(--accent-emerald); }
+
+    .source-badge {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .source-desc {
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.28;
+    }
+
+    .role-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 1px;
+    }
+
+    .role-chip {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid transparent;
+    }
+
+    .role-chip.r-arch {
+      background: rgba(192, 132, 252, 0.14);
+      border-color: rgba(192, 132, 252, 0.45);
+      color: #e9d5ff;
+    }
+    .role-chip.r-code {
+      background: rgba(56, 189, 248, 0.14);
+      border-color: rgba(56, 189, 248, 0.45);
+      color: #bae6fd;
+    }
+    .role-chip.r-fe {
+      background: rgba(244, 114, 182, 0.14);
+      border-color: rgba(244, 114, 182, 0.45);
+      color: #fbcfe8;
+    }
+    .role-chip.r-qa {
+      background: rgba(52, 211, 153, 0.14);
+      border-color: rgba(52, 211, 153, 0.45);
+      color: #a7f3d0;
+    }
+    .role-chip.r-sec {
+      background: rgba(251, 146, 60, 0.14);
+      border-color: rgba(251, 146, 60, 0.45);
+      color: #fed7aa;
+    }
+
+    .write-connector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 6px 0;
+      padding: 4px 8px;
+      background: rgba(56, 189, 248, 0.07);
+      border: 1px dashed rgba(56, 189, 248, 0.35);
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+    }
+
+    .dir-box {
+      background: #0b111e;
+      border: 1px solid var(--border-bright);
+      border-radius: 8px;
+      padding: 7px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+      min-height: 0;
+      justify-content: space-between;
+    }
+
+    .dir-header {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dir-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(27, 39, 61, 0.75);
+      border: 1px solid rgba(59, 82, 126, 0.5);
+      border-radius: 5px;
+      padding: 5px 8px;
+    }
+
+    .dir-path {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #f1f5f9;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .dir-note {
+      font-size: 10px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .dir-item.ignored {
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px dashed rgba(248, 113, 113, 0.45);
+    }
+
+    .dir-item.ignored .dir-path {
+      color: #fca5a5;
+      font-size: 10px;
+      text-decoration: line-through;
+    }
+
+    .dir-item.ignored .dir-note {
+      color: var(--accent-red);
+      font-weight: 700;
+      font-size: 10px;
+    }
+
+    /* CENTER COLUMN: READ-ONLY ARROW & HABBLAUD DOCKER */
+    .center-col {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
+      min-height: 0;
+    }
+
+    .ro-connector-card {
+      background: linear-gradient(180deg, rgba(17, 24, 39, 0.95) 0%, rgba(22, 32, 51, 0.95) 100%);
+      border: 1px solid rgba(52, 211, 153, 0.45);
+      border-radius: 10px;
+      padding: 7px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 2px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .ro-title {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: var(--accent-emerald);
+      letter-spacing: -0.01em;
+    }
+
+    .ro-sub {
+      font-size: 10.5px;
+      color: var(--text-secondary);
+      line-height: 1.25;
+    }
+
+    .habblaud-core {
+      background: linear-gradient(180deg, #131d31 0%, #0f172a 100%);
+      border: 2px solid var(--accent-cyan);
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+      min-height: 0;
+      justify-content: space-between;
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.15);
+    }
+
+    .core-badge-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .docker-pill {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: #090d16;
+      background: var(--accent-cyan);
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .mit-pill {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-bright);
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+
+    .core-main-label {
+      background: #090d16;
+      border: 1px solid var(--border-bright);
+      border-radius: 6px;
+      padding: 6px 6px;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+
+    .core-feature-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .core-feature {
+      background: rgba(27, 39, 61, 0.65);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 5px 7px;
+      font-size: 10.5px;
+      color: var(--text-secondary);
+      line-height: 1.28;
+    }
+
+    .core-feature strong {
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .core-feature code {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--accent-amber);
+      background: rgba(251, 191, 36, 0.12);
+      padding: 0 3px;
+      border-radius: 3px;
+    }
+
+    .core-cmd-box {
+      background: #090d16;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 5px 7px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--accent-emerald);
+      line-height: 1.32;
+      white-space: nowrap;
+    }
+
+    .sync-card {
+      background: linear-gradient(180deg, rgba(17, 24, 39, 0.95) 0%, rgba(22, 32, 51, 0.95) 100%);
+      border: 1px solid rgba(192, 132, 252, 0.45);
+      border-radius: 10px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 2px;
+    }
+
+    .sync-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--accent-purple);
+      white-space: nowrap;
+    }
+
+    .sync-sub {
+      font-size: 10px;
+      color: var(--text-secondary);
+      line-height: 1.22;
+    }
+
+    /* RIGHT COLUMN: PIXEL-ART VIRTUAL OFFICE */
+    .office-panel {
+      padding: 9px 11px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .browser-bar {
+      background: #0b111e;
+      border: 1px solid var(--border-bright);
+      border-radius: 7px 7px 0 0;
+      padding: 5px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .window-dots {
+      display: flex;
+      gap: 5px;
+    }
+
+    .w-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+    }
+    .w-red { background: #ef4444; }
+    .w-yellow { background: #f59e0b; }
+    .w-green { background: #10b981; }
+
+    .url-bar {
+      background: #162033;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 2px 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+
+    .room-status {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--accent-emerald);
+    }
+
+    .pixel-room-wrap {
+      border-left: 1px solid var(--border-bright);
+      border-right: 1px solid var(--border-bright);
+      border-bottom: 1px solid var(--border-bright);
+      border-radius: 0 0 7px 7px;
+      background: #0d1526;
+      overflow: hidden;
+      height: 452px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .office-legend {
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #0b111e;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 10.5px;
+      color: var(--text-secondary);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    .l-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .lb-typing {
+      background: rgba(56, 189, 248, 0.18);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+    }
+
+    .lb-need {
+      background: rgba(251, 191, 36, 0.2);
+      color: var(--accent-amber);
+      border: 1px solid rgba(251, 191, 36, 0.55);
+    }
+
+    .lb-ignore {
+      background: rgba(248, 113, 113, 0.16);
+      color: var(--accent-red);
+      border: 1px solid rgba(248, 113, 113, 0.45);
+    }
+
+    /* BOTTOM BAR */
+    .footer-bar {
+      position: relative;
+      z-index: 1;
+      height: 44px;
+      background: linear-gradient(90deg, #111827 0%, #162033 50%, #111827 100%);
+      border: 1px solid var(--border-bright);
+      border-radius: 8px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .footer-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .footer-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .ft-patch {
+      background: rgba(251, 191, 36, 0.16);
+      border: 1px solid rgba(251, 191, 36, 0.5);
+      color: var(--accent-amber);
+    }
+
+    .ft-install {
+      background: rgba(52, 211, 153, 0.16);
+      border: 1px solid rgba(52, 211, 153, 0.5);
+      color: var(--accent-emerald);
+    }
+
+    .footer-code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      background: #090d16;
+      border: 1px solid var(--border-subtle);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <main class="canvas">
+    <!-- TOP TITLE HEADER -->
+    <header class="header">
+      <div class="header-left">
+        <div class="title-row">
+          <span class="pixel-badge">PIXEL VIRTUAL OFFICE</span>
+          <h1><span class="hl-cyan">Habblaud × 9r:</span> xem cả team agent làm việc</h1>
+        </div>
+        <p class="subtitle">
+          Giám sát trực quan phiên làm việc của <strong>Claude Code (dispatcher)</strong>, dàn <strong>Worker 9r</strong> và <strong>Codex</strong> trong văn phòng ảo thời gian thực
+        </p>
+      </div>
+      <div class="header-right">
+        <div class="meta-pill">
+          <span class="meta-label">Chế độ gắn thư mục</span>
+          <span class="meta-val">đọc chỉ-đọc (read-only)</span>
+        </div>
+        <div class="meta-pill">
+          <span class="meta-label">Địa chỉ Web UI</span>
+          <span class="meta-val">127.0.0.1:4747</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN 3-COLUMN DIAGRAM -->
+    <section class="main-grid">
+      <!-- LEFT COLUMN: SOURCES & SESSION DIRECTORIES -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="step-num">1</span>
+            Nguồn phiên Agent trên máy
+          </div>
+          <span class="panel-tag">Host Filesystem</span>
+        </div>
+
+        <div class="source-list">
+          <!-- Source 1: Claude Code (dispatcher) -->
+          <div class="source-card dispatcher">
+            <div class="source-top">
+              <span class="source-name">
+                <span class="dot dot-amber"></span>
+                Claude Code (dispatcher)
+              </span>
+              <span class="source-badge">Phiên chính</span>
+            </div>
+            <p class="source-desc">Chia việc, gọi <code>9r &lt;role&gt; "&lt;brief&gt;"</code>, đọc Handoff Manifest</p>
+          </div>
+
+          <!-- Source 2: Worker 9r -->
+          <div class="source-card workers">
+            <div class="source-top">
+              <span class="source-name">
+                <span class="dot dot-cyan"></span>
+                Worker 9r
+              </span>
+              <span class="source-badge">claude CLI → 9router :20128</span>
+            </div>
+            <p class="source-desc">Các role thật trong <code>company/workers.json</code>:</p>
+            <div class="role-chips">
+              <span class="role-chip r-arch">architect</span>
+              <span class="role-chip r-code">coder</span>
+              <span class="role-chip r-fe">frontend</span>
+              <span class="role-chip r-qa">qa</span>
+              <span class="role-chip r-sec">security_reviewer</span>
+            </div>
+          </div>
+
+          <!-- Source 3: Codex -->
+          <div class="source-card codex">
+            <div class="source-top">
+              <span class="source-name">
+                <span class="dot dot-emerald"></span>
+                Codex
+              </span>
+              <span class="source-badge">Codex CLI</span>
+            </div>
+            <p class="source-desc">Phiên làm việc của agent Codex chạy trực tiếp trên máy</p>
+          </div>
+        </div>
+
+        <div class="write-connector">
+          <span>▼ Ghi trạng thái phiên &amp; lịch sử hoạt động ▼</span>
+        </div>
+
+        <!-- Session Directories -->
+        <div class="dir-box">
+          <div class="dir-header">
+            <span>Thư mục phiên làm việc</span>
+            <span>JSON / JSONL</span>
+          </div>
+          <div class="dir-item">
+            <span class="dir-path">~/.claude/sessions</span>
+            <span class="dir-note">PID, cwd, trạng thái phiên</span>
+          </div>
+          <div class="dir-item">
+            <span class="dir-path">~/.claude/projects</span>
+            <span class="dir-note">Transcript Claude &amp; Worker 9r</span>
+          </div>
+          <div class="dir-item">
+            <span class="dir-path">~/.codex/sessions</span>
+            <span class="dir-note">Transcript &amp; phiên Codex</span>
+          </div>
+          <div class="dir-item ignored">
+            <span class="dir-path">.claude-mem/observer-sessions</span>
+            <span class="dir-note">✕ Bỏ qua bởi patch</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER COLUMN: READ-ONLY MOUNT & HABBLAUD DOCKER -->
+      <div class="center-col">
+        <!-- Read-only arrow card -->
+        <div class="ro-connector-card">
+          <span class="ro-title">đọc chỉ-đọc (read-only)</span>
+          <svg width="210" height="20" viewBox="0 0 220 26" shape-rendering="crispEdges" aria-label="Mũi tên đọc chỉ-đọc">
+            <rect x="6" y="11" width="186" height="4" fill="#34d399" />
+            <rect x="20" y="7" width="6" height="12" fill="#10b981" />
+            <rect x="60" y="7" width="6" height="12" fill="#10b981" />
+            <rect x="100" y="7" width="6" height="12" fill="#10b981" />
+            <rect x="140" y="7" width="6" height="12" fill="#10b981" />
+            <polygon points="190,4 214,13 190,22" fill="#34d399" />
+          </svg>
+          <span class="ro-sub">Mount thư mục phiên vào container, không can thiệp tiến trình</span>
+        </div>
+
+        <!-- Habblaud Docker Block -->
+        <div class="habblaud-core">
+          <div class="core-badge-top">
+            <span class="docker-pill">Container</span>
+            <span class="mit-pill">Upstream MIT · Pinned</span>
+          </div>
+
+          <div class="core-main-label">
+            Habblaud · docker · 127.0.0.1:4747
+          </div>
+
+          <div class="core-feature-list">
+            <div class="core-feature">
+              <strong>RegistryReader:</strong> quét phiên đang sống, ánh xạ <code>cwd</code> và công cụ đang chạy thành nhân vật trong phòng.
+            </div>
+            <div class="core-feature">
+              <strong>Patch lọc nhiễu:</strong> <code>IGNORED_CWD</code> tự động loại bỏ các phiên nền <code>.claude-mem/observer-sessions</code>.
+            </div>
+            <div class="core-feature">
+              <strong>setup-habblaud.sh:</strong> clone upstream ở commit ghim <code>faa1a01…</code> ở chế độ detached HEAD rồi áp patch an toàn.
+            </div>
+          </div>
+
+          <div class="core-cmd-box">
+            $ cd ~/habblaud<br />
+            $ npm install &amp;&amp; npm run docker:up
+          </div>
+        </div>
+
+        <!-- Sync arrow to Pixel Room -->
+        <div class="sync-card">
+          <span class="sync-title">Hiển thị trực tiếp lên văn phòng pixel ▶</span>
+          <span class="sync-sub">Cập nhật trạng thái gõ phím, suy nghĩ &amp; giơ tay</span>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: PIXEL-ART OFFICE SVG -->
+      <div class="panel office-panel">
+        <div class="browser-bar">
+          <div class="window-dots">
+            <span class="w-dot w-red"></span>
+            <span class="w-dot w-yellow"></span>
+            <span class="w-dot w-green"></span>
+          </div>
+          <div class="url-bar">Habblaud · docker · 127.0.0.1:4747</div>
+          <div class="room-status">● 6 AGENT ACTIVE</div>
+        </div>
+
+        <div class="pixel-room-wrap">
+          <!-- PURE PIXEL-ART SVG (NO BITMAP, CRISP EDGES) -->
+          <svg width="568" height="444" viewBox="0 0 568 444" shape-rendering="crispEdges" role="img" aria-label="Văn phòng ảo pixel-art Habblaud hiển thị các worker 9r">
+            <!-- Floor Base -->
+            <rect x="0" y="0" width="568" height="444" fill="#131c2e" />
+
+            <!-- Pixel Checkerboard Floor Tiles (from y=76 to 444) -->
+            <g fill="#172238">
+              <rect x="0" y="76" width="568" height="368" />
+            </g>
+            <!-- Tile stripes for blocky pixel floor feel -->
+            <g fill="#1c2942">
+              <rect x="0" y="76" width="568" height="4" />
+              <rect x="0" y="124" width="568" height="2" />
+              <rect x="0" y="172" width="568" height="2" />
+              <rect x="0" y="220" width="568" height="2" />
+              <rect x="0" y="268" width="568" height="2" />
+              <rect x="0" y="316" width="568" height="2" />
+              <rect x="0" y="364" width="568" height="2" />
+              <rect x="0" y="412" width="568" height="2" />
+              <rect x="56" y="76" width="2" height="368" />
+              <rect x="112" y="76" width="2" height="368" />
+              <rect x="168" y="76" width="2" height="368" />
+              <rect x="224" y="76" width="2" height="368" />
+              <rect x="280" y="76" width="2" height="368" />
+              <rect x="336" y="76" width="2" height="368" />
+              <rect x="392" y="76" width="2" height="368" />
+              <rect x="448" y="76" width="2" height="368" />
+              <rect x="504" y="76" width="2" height="368" />
+            </g>
+
+            <!-- Center Pixel Carpet Runner -->
+            <rect x="24" y="226" width="520" height="28" fill="#1e1b4b" />
+            <rect x="24" y="226" width="520" height="4" fill="#312e81" />
+            <rect x="24" y="250" width="520" height="4" fill="#312e81" />
+
+            <!-- TOP WALL (Pixel Office Wall) -->
+            <rect x="0" y="0" width="568" height="72" fill="#1e293b" />
+            <rect x="0" y="64" width="568" height="8" fill="#334155" />
+            <rect x="0" y="72" width="568" height="4" fill="#0f172a" />
+
+            <!-- Wall Window Left (Night sky + stars) -->
+            <rect x="20" y="10" width="88" height="46" fill="#090d16" />
+            <rect x="20" y="10" width="88" height="4" fill="#475569" />
+            <rect x="20" y="52" width="88" height="4" fill="#475569" />
+            <rect x="20" y="10" width="4" height="46" fill="#475569" />
+            <rect x="104" y="10" width="4" height="46" fill="#475569" />
+            <rect x="62" y="10" width="4" height="46" fill="#334155" />
+            <rect x="20" y="31" width="88" height="4" fill="#334155" />
+            <!-- Pixel stars & moon -->
+            <rect x="34" y="18" width="4" height="4" fill="#fde047" />
+            <rect x="48" y="24" width="2" height="2" fill="#bae6fd" />
+            <rect x="82" y="18" width="6" height="6" fill="#fef08a" />
+            <rect x="76" y="40" width="3" height="3" fill="#38bdf8" />
+
+            <!-- Wall Pixel Status Board (Center) -->
+            <rect x="128" y="8" width="268" height="50" fill="#090d16" />
+            <rect x="128" y="8" width="268" height="4" fill="#38bdf8" />
+            <rect x="128" y="54" width="268" height="4" fill="#334155" />
+            <rect x="128" y="8" width="4" height="50" fill="#334155" />
+            <rect x="392" y="8" width="4" height="50" fill="#334155" />
+            <text x="140" y="27" fill="#38bdf8" font-family="monospace" font-size="11" font-weight="bold">HABBLAUD OFFICE · 9R TEAM</text>
+            <text x="140" y="44" fill="#34d399" font-family="monospace" font-size="10" font-weight="bold">ONLINE: 6  |  OBSERVER IGNORED: ✓</text>
+
+            <!-- Wall Bookshelf & Coffee Station (Right) -->
+            <rect x="416" y="12" width="76" height="46" fill="#271c19" />
+            <rect x="420" y="16" width="68" height="16" fill="#1c1917" />
+            <!-- Pixel Books -->
+            <rect x="424" y="18" width="6" height="14" fill="#ef4444" />
+            <rect x="432" y="20" width="6" height="12" fill="#38bdf8" />
+            <rect x="440" y="18" width="8" height="14" fill="#fbbf24" />
+            <rect x="450" y="21" width="6" height="11" fill="#34d399" />
+            <rect x="462" y="18" width="8" height="14" fill="#c084fc" />
+            <rect x="472" y="20" width="6" height="12" fill="#f472b6" />
+            <!-- Shelf row 2 -->
+            <rect x="420" y="36" width="68" height="16" fill="#1c1917" />
+            <rect x="426" y="40" width="12" height="12" fill="#60a5fa" />
+            <rect x="444" y="38" width="14" height="14" fill="#f97316" />
+            <rect x="464" y="42" width="16" height="10" fill="#a3e635" />
+
+            <!-- Pixel Potted Plant (Top Right Corner) -->
+            <rect x="516" y="42" width="24" height="20" fill="#b45309" />
+            <rect x="512" y="38" width="32" height="6" fill="#d97706" />
+            <rect x="520" y="22" width="16" height="16" fill="#10b981" />
+            <rect x="512" y="26" width="8" height="10" fill="#059669" />
+            <rect x="536" y="24" width="8" height="12" fill="#34d399" />
+            <rect x="524" y="14" width="8" height="8" fill="#34d399" />
+
+            <!-- ========================================================= -->
+            <!-- WORKSTATION 1 (TOP-LEFT): Claude Code (dispatcher)         -->
+            <!-- ========================================================= -->
+            <g transform="translate(22, 92)">
+              <!-- Speech Bubble: điều phối -->
+              <rect x="10" y="0" width="134" height="24" fill="#1e293b" />
+              <rect x="10" y="0" width="134" height="2" fill="#fbbf24" />
+              <rect x="10" y="22" width="134" height="2" fill="#fbbf24" />
+              <rect x="10" y="0" width="2" height="24" fill="#fbbf24" />
+              <rect x="142" y="0" width="2" height="24" fill="#fbbf24" />
+              <rect x="68" y="24" width="8" height="6" fill="#fbbf24" />
+              <text x="77" y="16" text-anchor="middle" fill="#fef08a" font-family="sans-serif" font-size="11" font-weight="bold">điều phối 9r...</text>
+
+              <!-- Pixel Chair Back -->
+              <rect x="56" y="36" width="36" height="24" fill="#334155" />
+              <!-- Blocky Character: Dispatcher (Amber/Gold outfit) -->
+              <!-- Hair/Crown -->
+              <rect x="62" y="30" width="24" height="6" fill="#fbbf24" />
+              <!-- Head -->
+              <rect x="62" y="36" width="24" height="18" fill="#fcd34d" />
+              <!-- Eyes -->
+              <rect x="66" y="42" width="4" height="4" fill="#0f172a" />
+              <rect x="78" y="42" width="4" height="4" fill="#0f172a" />
+              <!-- Torso & Arms -->
+              <rect x="54" y="54" width="40" height="22" fill="#f59e0b" />
+              <rect x="46" y="56" width="8" height="18" fill="#d97706" />
+              <rect x="94" y="56" width="8" height="18" fill="#d97706" />
+
+              <!-- Pixel Desk -->
+              <rect x="14" y="72" width="124" height="32" fill="#78350f" />
+              <rect x="14" y="72" width="124" height="6" fill="#b45309" />
+              <rect x="18" y="104" width="10" height="14" fill="#451a03" />
+              <rect x="124" y="104" width="10" height="14" fill="#451a03" />
+
+              <!-- Monitor on Desk -->
+              <rect x="34" y="58" width="38" height="22" fill="#090d16" />
+              <rect x="36" y="60" width="34" height="16" fill="#0284c7" />
+              <rect x="40" y="64" width="20" height="3" fill="#bae6fd" />
+              <rect x="40" y="70" width="26" height="3" fill="#fde047" />
+              <rect x="48" y="80" width="10" height="4" fill="#475569" />
+              <!-- Laptop / Keyboard -->
+              <rect x="84" y="78" width="28" height="8" fill="#94a3b8" />
+
+              <!-- Role Nameplate -->
+              <rect x="8" y="114" width="136" height="20" fill="#090d16" />
+              <rect x="8" y="114" width="136" height="2" fill="#fbbf24" />
+              <text x="76" y="128" text-anchor="middle" fill="#fde047" font-family="monospace" font-size="11" font-weight="bold">dispatcher (Claude)</text>
+            </g>
+
+            <!-- ========================================================= -->
+            <!-- WORKSTATION 2 (TOP-CENTER): architect — GIƠ TAY "cần bạn"  -->
+            <!-- ========================================================= -->
+            <g transform="translate(198, 86)">
+              <!-- Highlighted Speech Bubble: "cần bạn" -->
+              <rect x="12" y="0" width="132" height="28" fill="#451a03" />
+              <rect x="12" y="0" width="132" height="3" fill="#fbbf24" />
+              <rect x="12" y="25" width="132" height="3" fill="#fbbf24" />
+              <rect x="12" y="0" width="3" height="28" fill="#fbbf24" />
+              <rect x="141" y="0" width="3" height="28" fill="#fbbf24" />
+              <rect x="72" y="28" width="10" height="6" fill="#fbbf24" />
+              <text x="78" y="19" text-anchor="middle" fill="#fef08a" font-family="sans-serif" font-size="13" font-weight="bold">✋ cần bạn</text>
+
+              <!-- Pixel Chair Back -->
+              <rect x="56" y="42" width="36" height="24" fill="#334155" />
+
+              <!-- Blocky Character: architect (Purple outfit, RIGHT ARM RAISED HIGH!) -->
+              <rect x="62" y="36" width="24" height="6" fill="#581c87" />
+              <rect x="62" y="42" width="24" height="18" fill="#fde68a" />
+              <rect x="66" y="48" width="4" height="4" fill="#0f172a" />
+              <rect x="78" y="48" width="4" height="4" fill="#0f172a" />
+              <!-- Torso -->
+              <rect x="54" y="60" width="40" height="22" fill="#a855f7" />
+              <!-- Left arm on desk -->
+              <rect x="46" y="62" width="8" height="16" fill="#9333ea" />
+              <!-- RAISED RIGHT ARM (Giơ tay!) -->
+              <rect x="94" y="36" width="10" height="28" fill="#a855f7" />
+              <rect x="94" y="28" width="10" height="8" fill="#fde68a" />
+
+              <!-- Pixel Desk -->
+              <rect x="14" y="78" width="124" height="32" fill="#78350f" />
+              <rect x="14" y="78" width="124" height="6" fill="#b45309" />
+              <rect x="18" y="110" width="10" height="14" fill="#451a03" />
+              <rect x="124" y="110" width="10" height="14" fill="#451a03" />
+
+              <!-- Monitor on Desk (Amber alert screen) -->
+              <rect x="42" y="64" width="42" height="22" fill="#090d16" />
+              <rect x="44" y="66" width="38" height="16" fill="#7c2d12" />
+              <rect x="48" y="70" width="28" height="4" fill="#fbbf24" />
+              <rect x="48" y="76" width="20" height="3" fill="#fed7aa" />
+              <rect x="58" y="86" width="10" height="4" fill="#475569" />
+
+              <!-- Role Nameplate -->
+              <rect x="14" y="120" width="124" height="20" fill="#090d16" />
+              <rect x="14" y="120" width="124" height="2" fill="#c084fc" />
+              <text x="76" y="134" text-anchor="middle" fill="#e9d5ff" font-family="monospace" font-size="11.5" font-weight="bold">architect</text>
+            </g>
+
+            <!-- ========================================================= -->
+            <!-- WORKSTATION 3 (TOP-RIGHT): coder — "đang gõ..."            -->
+            <!-- ========================================================= -->
+            <g transform="translate(382, 92)">
+              <!-- Speech Bubble: "đang gõ..." -->
+              <rect x="16" y="0" width="124" height="24" fill="#0f172a" />
+              <rect x="16" y="0" width="124" height="2" fill="#38bdf8" />
+              <rect x="16" y="22" width="124" height="2" fill="#38bdf8" />
+              <rect x="16" y="0" width="2" height="24" fill="#38bdf8" />
+              <rect x="138" y="0" width="2" height="24" fill="#38bdf8" />
+              <rect x="72" y="24" width="8" height="6" fill="#38bdf8" />
+              <text x="78" y="16" text-anchor="middle" fill="#7dd3fc" font-family="sans-serif" font-size="12" font-weight="bold">⌨ đang gõ...</text>
+
+              <!-- Pixel Chair Back -->
+              <rect x="56" y="36" width="36" height="24" fill="#334155" />
+
+              <!-- Blocky Character: coder (Cyan/Blue hoodie) -->
+              <rect x="62" y="30" width="24" height="6" fill="#0f172a" />
+              <rect x="62" y="36" width="24" height="18" fill="#fed7aa" />
+              <rect x="66" y="42" width="4" height="4" fill="#0f172a" />
+              <rect x="78" y="42" width="4" height="4" fill="#0f172a" />
+              <rect x="54" y="54" width="40" height="22" fill="#0284c7" />
+              <rect x="46" y="58" width="10" height="16" fill="#0369a1" />
+              <rect x="92" y="58" width="10" height="16" fill="#0369a1" />
+
+              <!-- Pixel Desk -->
+              <rect x="14" y="72" width="124" height="32" fill="#78350f" />
+              <rect x="14" y="72" width="124" height="6" fill="#b45309" />
+              <rect x="18" y="104" width="10" height="14" fill="#451a03" />
+              <rect x="124" y="104" width="10" height="14" fill="#451a03" />
+
+              <!-- Monitor + Green Code Lines -->
+              <rect x="30" y="58" width="42" height="22" fill="#090d16" />
+              <rect x="32" y="60" width="38" height="16" fill="#064e3b" />
+              <rect x="36" y="63" width="24" height="3" fill="#34d399" />
+              <rect x="36" y="68" width="30" height="3" fill="#6ee7b7" />
+              <rect x="36" y="73" width="18" height="2" fill="#a7f3d0" />
+              <rect x="46" y="80" width="10" height="4" fill="#475569" />
+              <!-- Keyboard -->
+              <rect x="82" y="78" width="30" height="8" fill="#e2e8f0" />
+
+              <!-- Role Nameplate -->
+              <rect x="14" y="114" width="124" height="20" fill="#090d16" />
+              <rect x="14" y="114" width="124" height="2" fill="#38bdf8" />
+              <text x="76" y="128" text-anchor="middle" fill="#bae6fd" font-family="monospace" font-size="11.5" font-weight="bold">coder</text>
+            </g>
+
+            <!-- ========================================================= -->
+            <!-- WORKSTATION 4 (BOTTOM-LEFT): frontend — "đang gõ..."       -->
+            <!-- ========================================================= -->
+            <g transform="translate(16, 266)">
+              <!-- Speech Bubble: "đang gõ..." -->
+              <rect x="16" y="0" width="124" height="24" fill="#0f172a" />
+              <rect x="16" y="0" width="124" height="2" fill="#f472b6" />
+              <rect x="16" y="22" width="124" height="2" fill="#f472b6" />
+              <rect x="16" y="0" width="2" height="24" fill="#f472b6" />
+              <rect x="138" y="0" width="2" height="24" fill="#f472b6" />
+              <rect x="72" y="24" width="8" height="6" fill="#f472b6" />
+              <text x="78" y="16" text-anchor="middle" fill="#fbcfe8" font-family="sans-serif" font-size="12" font-weight="bold">đang gõ...</text>
+
+              <!-- Pixel Chair Back -->
+              <rect x="56" y="36" width="36" height="24" fill="#334155" />
+
+              <!-- Blocky Character: frontend (Pink/Magenta outfit) -->
+              <rect x="60" y="30" width="28" height="6" fill="#831843" />
+              <rect x="62" y="36" width="24" height="18" fill="#fde68a" />
+              <rect x="66" y="42" width="4" height="4" fill="#0f172a" />
+              <rect x="78" y="42" width="4" height="4" fill="#0f172a" />
+              <rect x="54" y="54" width="40" height="22" fill="#ec4899" />
+              <rect x="46" y="58" width="10" height="16" fill="#db2777" />
+              <rect x="92" y="58" width="10" height="16" fill="#db2777" />
+
+              <!-- Pixel Desk -->
+              <rect x="14" y="72" width="124" height="32" fill="#78350f" />
+              <rect x="14" y="72" width="124" height="6" fill="#b45309" />
+              <rect x="18" y="104" width="10" height="14" fill="#451a03" />
+              <rect x="124" y="104" width="10" height="14" fill="#451a03" />
+
+              <!-- Monitor on Desk (UI layout blocks) -->
+              <rect x="34" y="58" width="42" height="22" fill="#090d16" />
+              <rect x="36" y="60" width="38" height="16" fill="#4c1d95" />
+              <rect x="40" y="63" width="12" height="10" fill="#f472b6" />
+              <rect x="54" y="63" width="16" height="4" fill="#38bdf8" />
+              <rect x="54" y="69" width="16" height="4" fill="#a78bfa" />
+              <rect x="50" y="80" width="10" height="4" fill="#475569" />
+
+              <!-- Role Nameplate -->
+              <rect x="14" y="114" width="124" height="20" fill="#090d16" />
+              <rect x="14" y="114" width="124" height="2" fill="#f472b6" />
+              <text x="76" y="128" text-anchor="middle" fill="#fbcfe8" font-family="monospace" font-size="11.5" font-weight="bold">frontend</text>
+            </g>
+
+            <!-- ========================================================= -->
+            <!-- WORKSTATION 5 (BOTTOM-CENTER): qa                          -->
+            <!-- ========================================================= -->
+            <g transform="translate(174, 266)">
+              <!-- Speech Bubble: "chạy test..." -->
+              <rect x="16" y="0" width="124" height="24" fill="#0f172a" />
+              <rect x="16" y="0" width="124" height="2" fill="#34d399" />
+              <rect x="16" y="22" width="124" height="2" fill="#34d399" />
+              <rect x="16" y="0" width="2" height="24" fill="#34d399" />
+              <rect x="138" y="0" width="2" height="24" fill="#34d399" />
+              <rect x="72" y="24" width="8" height="6" fill="#34d399" />
+              <text x="78" y="16" text-anchor="middle" fill="#a7f3d0" font-family="sans-serif" font-size="11.5" font-weight="bold">đang gõ...</text>
+
+              <!-- Pixel Chair Back -->
+              <rect x="56" y="36" width="36" height="24" fill="#334155" />
+
+              <!-- Blocky Character: qa (Emerald Green outfit) -->
+              <rect x="62" y="30" width="24" height="6" fill="#064e3b" />
+              <rect x="62" y="36" width="24" height="18" fill="#fcd34d" />
+              <rect x="66" y="42" width="4" height="4" fill="#0f172a" />
+              <rect x="78" y="42" width="4" height="4" fill="#0f172a" />
+              <rect x="54" y="54" width="40" height="22" fill="#10b981" />
+              <rect x="46" y="58" width="10" height="16" fill="#059669" />
+              <rect x="92" y="58" width="10" height="16" fill="#059669" />
+
+              <!-- Pixel Desk -->
+              <rect x="14" y="72" width="124" height="32" fill="#78350f" />
+              <rect x="14" y="72" width="124" height="6" fill="#b45309" />
+              <rect x="18" y="104" width="10" height="14" fill="#451a03" />
+              <rect x="124" y="104" width="10" height="14" fill="#451a03" />
+
+              <!-- Monitor on Desk -->
+              <rect x="36" y="58" width="42" height="22" fill="#090d16" />
+              <rect x="38" y="60" width="38" height="16" fill="#065f46" />
+              <rect x="42" y="64" width="28" height="3" fill="#34d399" />
+              <rect x="42" y="70" width="22" height="3" fill="#a7f3d0" />
+              <rect x="52" y="80" width="10" height="4" fill="#475569" />
+
+              <!-- Role Nameplate -->
+              <rect x="14" y="114" width="124" height="20" fill="#090d16" />
+              <rect x="14" y="114" width="124" height="2" fill="#34d399" />
+              <text x="76" y="128" text-anchor="middle" fill="#a7f3d0" font-family="monospace" font-size="11.5" font-weight="bold">qa</text>
+            </g>
+
+            <!-- ========================================================= -->
+            <!-- WORKSTATION 6 (BOTTOM-RIGHT): security_reviewer & Codex    -->
+            <!-- ========================================================= -->
+            <g transform="translate(334, 266)">
+              <!-- Speech Bubble: OWASP / Codex -->
+              <rect x="18" y="0" width="174" height="24" fill="#0f172a" />
+              <rect x="18" y="0" width="174" height="2" fill="#fb923c" />
+              <rect x="18" y="22" width="174" height="2" fill="#fb923c" />
+              <rect x="18" y="0" width="2" height="24" fill="#fb923c" />
+              <rect x="190" y="0" width="2" height="24" fill="#fb923c" />
+              <rect x="60" y="24" width="8" height="6" fill="#fb923c" />
+              <text x="105" y="16" text-anchor="middle" fill="#fed7aa" font-family="sans-serif" font-size="11" font-weight="bold">rà soát diff · đang gõ...</text>
+
+              <!-- Character A: security_reviewer (Orange outfit) -->
+              <rect x="48" y="30" width="22" height="6" fill="#7c2d12" />
+              <rect x="48" y="36" width="22" height="18" fill="#fde68a" />
+              <rect x="52" y="42" width="4" height="4" fill="#0f172a" />
+              <rect x="62" y="42" width="4" height="4" fill="#0f172a" />
+              <rect x="42" y="54" width="34" height="22" fill="#f97316" />
+
+              <!-- Character B: Codex (Indigo/Teal outfit) -->
+              <rect x="150" y="30" width="22" height="6" fill="#1e1b4b" />
+              <rect x="150" y="36" width="22" height="18" fill="#bae6fd" />
+              <rect x="154" y="42" width="4" height="4" fill="#0f172a" />
+              <rect x="164" y="42" width="4" height="4" fill="#0f172a" />
+              <rect x="144" y="54" width="34" height="22" fill="#6366f1" />
+
+              <!-- Shared Wide Pixel Desk -->
+              <rect x="10" y="72" width="194" height="32" fill="#78350f" />
+              <rect x="10" y="72" width="194" height="6" fill="#b45309" />
+              <rect x="16" y="104" width="10" height="14" fill="#451a03" />
+              <rect x="188" y="104" width="10" height="14" fill="#451a03" />
+
+              <!-- Monitors on Shared Desk -->
+              <rect x="36" y="58" width="36" height="20" fill="#090d16" />
+              <rect x="38" y="60" width="32" height="14" fill="#7c2d12" />
+              <rect x="42" y="64" width="22" height="3" fill="#fb923c" />
+
+              <rect x="138" y="58" width="36" height="20" fill="#090d16" />
+              <rect x="140" y="60" width="32" height="14" fill="#1e1b4b" />
+              <rect x="144" y="64" width="22" height="3" fill="#818cf8" />
+
+              <!-- Role Nameplates -->
+              <rect x="0" y="114" width="122" height="20" fill="#090d16" />
+              <rect x="0" y="114" width="122" height="2" fill="#fb923c" />
+              <text x="61" y="128" text-anchor="middle" fill="#fed7aa" font-family="monospace" font-size="10" font-weight="bold">security_reviewer</text>
+
+              <rect x="140" y="114" width="68" height="20" fill="#090d16" />
+              <rect x="140" y="114" width="68" height="2" fill="#818cf8" />
+              <text x="174" y="128" text-anchor="middle" fill="#c7d2fe" font-family="monospace" font-size="10.5" font-weight="bold">Codex</text>
+            </g>
+
+            <!-- ========================================================= -->
+            <!-- BOTTOM DOORWAY BARRIER: claude-mem observer blocked        -->
+            <!-- ========================================================= -->
+            <g transform="translate(148, 414)">
+              <rect x="0" y="0" width="272" height="24" fill="#1f1218" />
+              <rect x="0" y="0" width="272" height="2" fill="#f87171" />
+              <text x="136" y="16" text-anchor="middle" fill="#fca5a5" font-family="monospace" font-size="10.5" font-weight="bold">🚫 Chặn ngoài cửa: .claude-mem/observer-sessions</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Legend under Pixel Room -->
+        <div class="office-legend">
+          <div class="legend-item">
+            <span class="l-badge lb-typing">đang gõ...</span>
+            <span>Worker đang thực thi tool / code</span>
+          </div>
+          <div class="legend-item">
+            <span class="l-badge lb-need">✋ cần bạn</span>
+            <span>Chờ người dùng quyết định</span>
+          </div>
+          <div class="legend-item">
+            <span class="l-badge lb-ignore">Đã lọc</span>
+            <span>Ẩn observer claude-mem</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BOTTOM BAR (PATCH & INSTALL INFO) -->
+    <footer class="footer-bar">
+      <div class="footer-item">
+        <span class="footer-tag ft-patch">PATCH</span>
+        <span>Patch của repo: bỏ qua phiên observer của claude-mem (habblaud/patches)</span>
+      </div>
+      <div class="footer-item">
+        <span class="footer-tag ft-install">SETUP</span>
+        <span class="footer-code">Cài: ./install.sh --with-habblaud ~/habblaud</span>
+      </div>
+    </footer>
+  </main>
+</body>
+</html>
