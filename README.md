@@ -159,6 +159,7 @@ Giao diện terminal để chỉnh từng worker mà không phải sửa JSON:
 
 - **Màn Roles:** `↑↓`/`jk` chọn role, `e` đổi effort (low → medium → high → xhigh → max), `c` gán combo khác, `r` xoá ghi đè, `Enter` mở chuỗi model của combo, `q` thoát.
 - **Màn Combo:** `K`/`J` đổi thứ tự fallback, `d` xoá, `a` thêm model (lọc theo chữ gõ, lấy từ 9router), `t` thử gọi model đang chọn, `s` lưu, `Esc` quay lại. Combo dùng chung giữa nhiều role sẽ có cảnh báo; chỉnh combo ảnh hưởng tất cả role đó.
+- **Gợi ý và màu:** thanh dưới cùng luôn hiện phím theo ngữ cảnh, dòng gợi ý giải thích mục đang chọn, `?` mở trợ giúp kèm các lệnh CLI có thể copy, `1`–`5` đặt nhanh effort, `F5`/`R` kiểm tra lại 9router. Effort và nhà cung cấp (`cx/`, `ag/`) có màu riêng; `*` đánh dấu role đã tuỳ chỉnh, `● chưa lưu` báo combo có thay đổi chưa lưu. Đặt `NO_COLOR=1` để tắt màu.
 - **Phạm vi lưu:** đổi effort/combo của role lưu ngay vào `~/.claude/company/roles.json` (quyền 600) và `9r` đọc file này ở mỗi lần chạy. Đổi chuỗi model ghi vào `9router/combos.json` rồi chạy `apply-combos.py` để cập nhật 9router.
 - **Ưu tiên effort:** `NINER_EFFORT` > `roles.json` > mặc định `max`.
 

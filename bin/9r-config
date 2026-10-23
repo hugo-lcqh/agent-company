@@ -49,6 +49,7 @@ rejected
 ...     assert request.get_header('X-9router-token-saver') == 'off'
 ...     assert json.loads(request.data)['max_tokens'] == 30
 ...     assert opener.open.call_args.kwargs['timeout'] == 60
+...     assert check_router(2) is True
 >>> import io
 >>> error = urllib.error.HTTPError('http://localhost', 401, 'error', {}, io.BytesIO(b'secret rejected'))
 >>> with patch.dict(test_model.__globals__, read_key=lambda: 'secret'), patch('urllib.request.build_opener', return_value=opener):
@@ -56,39 +57,62 @@ rejected
 ...     ok, message = test_model('cx/one')
 ...     assert not ok and '401' in message and 'secret' not in message
 ...     assert fetch_models()[0] == []
+...     assert check_router(2) is False
 >>> screen = Mock(); screen.getmaxyx.return_value = (2, 15)
 >>> draw(screen, 'Roles', ['coder | w-code | max'], 0, 'notice', 'q quit')
 >>> with patch.dict(save_combo.__globals__, atomic_save=Mock()), patch('subprocess.run') as run:
 ...     assert save_combo(combos.copy(), 'w-code', ['cx/new'], False)[0]
 ...     run.assert_not_called()
+>>> assert supports_unicode('utf-8') and not supports_unicode('ascii')
+>>> assert glyphs(True)['ok'] == '✓' and glyphs(False)['ok'] == '+'
+>>> assert not color_enabled({'NO_COLOR': '1'}) and color_enabled({})
+>>> assert model_provider('cx/gpt-6') == 'cx' and model_provider('ag/gemini') == 'ag' and model_provider('x/y') == 'other'
+>>> assert bool(model_attr('cx/gpt-6', first=True) & curses.A_BOLD) and not bool(model_attr('ag/g', first=False) & curses.A_BOLD)
+>>> assert combo_pair('w-think') == PAIR_MAGENTA and combo_pair('w-code') == PAIR_CYAN and combo_pair('w-x') in COMBO_PALETTE
+>>> assert (notice_kind('Error: x'), notice_kind('Shared by a, b'), notice_kind('Đã lưu'), notice_kind('Hi')) == ('error', 'warn', 'ok', 'info')
+>>> assert not is_overridden(workers, {}, 'coder') and is_overridden(workers, {'coder': {'effort': 'low'}}, 'coder')
+>>> assert clip('cx/gpt-6-astra', 10) == 'cx/gpt-6-…' and len(pad('architect', 14)) == 14
+>>> hdr, _ = format_header('Roles', 80, online=True, cfg_path='~/.claude/company', dirty=True)
+>>> assert all(k in hdr for k in ('9r-config', 'Roles', '~/.claude/company', 'online', 'chưa lưu'))
+>>> r_wide, _ = format_role_row('architect', 'w-think', 'max', 'cx/gpt-6-astra', 90, overridden=True)
+>>> r_narrow, _ = format_role_row('architect', 'w-think', 'max', 'cx/gpt-6-astra', 50, overridden=True)
+>>> assert '*' in r_wide and 'cx/gpt-6-astra' in r_wide and 'cx/gpt-6-astra' not in r_narrow
+>>> c_line, _ = format_combo_row(0, 'cx/gpt-6-astra', 80, (True, 'OK (0.25s)'))
+>>> assert '#1' in c_line and 'cx/gpt-6-astra' in c_line and '✓ 0.25s' in c_line
+>>> assert format_test_badge((False, 'HTTP 401: bad (0.12s)')) == ('✗ HTTP 401 0.12s', 'err')
+>>> assert 'architect dùng combo w-think, effort max: bấm e để đổi, c để đổi combo' in role_hint('architect', 'w-think', 'max')
+>>> assert 'e effort  c combo  Enter chuỗi model  r reset  ? trợ giúp  q thoát' in keys_bar('roles', 80)
+>>> assert len(keys_bar('roles', 45)) < len(keys_bar('roles', 80))
+>>> assert [t for _, t, k in parse_key_spans('e effort  c combo  ? trợ giúp  q thoát', 80) if k] == ['e', 'c', '?', 'q']
+>>> h_all = ' '.join(help_lines('roles', 'architect', 'w-think'))
+>>> assert all(s in h_all for s in ('9r-config list', '9r-config set <role> --effort high --combo w-ui',
+...     '9r-config reset <role>', '9r-config combo <tên> --set a,b,c', '9r-config test <model>',
+...     '9r <role> "<brief>"', 'roles.json', 'combos.json'))
 """
 
-import argparse
-import curses
-import http.client
-import json
-import os
+import argparse, curses, http.client, json, locale, os, subprocess, sys, tempfile, threading, time
+import urllib.error, urllib.parse, urllib.request
 from pathlib import Path
-import subprocess
-import sys
-import tempfile
-import time
-import urllib.error
-import urllib.parse
-import urllib.request
 
 REPO = Path(os.path.realpath(__file__)).parent.parent
 EFFORTS = ('low', 'medium', 'high', 'xhigh', 'max')
 ERRORS = (OSError, ValueError, http.client.HTTPException)
-
+PAIR_HEADER, PAIR_SELECTED, PAIR_GREEN, PAIR_BLUE = 1, 2, 3, 4
+PAIR_YELLOW, PAIR_RED, PAIR_MAGENTA, PAIR_CYAN = 5, 6, 7, 8
+PAIR_WHITE, PAIR_KEY, PAIR_HDR_OK, PAIR_HDR_ERR = 9, 10, 11, 12
+COLORS_READY = False
+EFFORT_STYLES = {
+    'low': (PAIR_GREEN, 0, curses.A_DIM), 'medium': (PAIR_BLUE, curses.A_BOLD, 0),
+    'high': (PAIR_YELLOW, 0, 0), 'xhigh': (PAIR_RED, 0, curses.A_BOLD),
+    'max': (PAIR_MAGENTA, curses.A_BOLD, curses.A_BOLD),
+}
+COMBO_PAIRS = {'w-think': PAIR_MAGENTA, 'w-code': PAIR_CYAN, 'w-ui': PAIR_GREEN, 'w-review': PAIR_YELLOW, 'w-fast': PAIR_BLUE}
+COMBO_PALETTE = (PAIR_CYAN, PAIR_MAGENTA, PAIR_GREEN, PAIR_YELLOW, PAIR_BLUE)
 
 def company_dir():
     return Path(os.environ.get('NINER_COMPANY_DIR', '~/.claude/company')).expanduser()
-
-
 def token(value):
     return isinstance(value, str) and bool(value) and all(c.isprintable() and not c.isspace() for c in value)
-
 
 def load_json(path, missing=False):
     try:
@@ -101,7 +125,6 @@ def load_json(path, missing=False):
     if not isinstance(value, dict):
         raise ValueError(f'{path.name} must contain a JSON object')
     return value
-
 
 def atomic_save(path, value):
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -118,18 +141,15 @@ def atomic_save(path, value):
         if os.path.exists(temporary):
             os.unlink(temporary)
 
-
 def effective(workers, overrides, role):
     if role not in workers:
         raise ValueError(f'Unknown role: {role}')
     settings = overrides.get(role, {})
     return settings.get('combo', workers[role]['model']), settings.get('effort', 'max')
 
-
 def validate_models(models):
     if not isinstance(models, list) or not models or any(not token(m) or m.startswith('w-') for m in models):
         raise ValueError('Combo needs nonempty model IDs (no whitespace or w-* combos)')
-
 
 def validate(workers, overrides, combos):
     if not workers or not combos:
@@ -150,7 +170,6 @@ def validate(workers, overrides, combos):
         if effort not in EFFORTS:
             raise ValueError(f'Invalid effort for {role}; choose {", ".join(EFFORTS)}')
 
-
 def save_role(workers, combos, role, combo=None, effort=None, reset=False):
     path = company_dir() / 'roles.json'
     overrides = load_json(path, missing=True)
@@ -158,12 +177,10 @@ def save_role(workers, combos, role, combo=None, effort=None, reset=False):
     if reset:
         overrides.pop(role, None)
     else:
-        overrides[role] = dict(overrides.get(role, {}))
-        overrides[role].update({k: v for k, v in (('combo', combo), ('effort', effort)) if v is not None})
+        overrides[role] = {**overrides.get(role, {}), **{k: v for k, v in (('combo', combo), ('effort', effort)) if v is not None}}
     validate(workers, overrides, combos)
     atomic_save(path, overrides)
     return overrides
-
 
 def read_key():
     try:
@@ -174,30 +191,36 @@ def read_key():
         raise ValueError('Empty or invalid 9router.key')
     return key
 
-
 def clean(text, key=''):
     text = str(text).replace(key, '[redacted]') if key else str(text)
     return ''.join(c if c.isprintable() or c == '\n' else '?' for c in text)
-
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None  # Never forward credentials on redirects.
 
-
-def request_router(path, key, payload=None):
+def request_router(path, key, payload=None, timeout=None):
     base = os.environ.get('NINER_ROUTER_URL', 'http://localhost:20128').rstrip('/')
     url = urllib.parse.urlsplit(base)
     if url.scheme not in ('http', 'https') or not url.hostname or url.username or url.password or url.query or url.fragment:
         raise ValueError('Invalid NINER_ROUTER_URL')
-    headers = {'Authorization': 'Bearer ' + key} if payload is None else {
+    headers = ({'Authorization': 'Bearer ' + key} if key else {}) if payload is None else {
         'x-api-key': key, 'anthropic-version': '2023-06-01',
         'content-type': 'application/json', 'x-9router-token-saver': 'off'}
-    request = urllib.request.Request(base + path, headers=headers,
-                                     data=None if payload is None else json.dumps(payload).encode())
-    return urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect()).open(
-        request, timeout=10 if payload is None else 60)
+    request = urllib.request.Request(base + path, headers=headers, data=None if payload is None else json.dumps(payload).encode())
+    wait = (10 if payload is None else 60) if timeout is None else timeout
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect()).open(request, timeout=wait)
 
+def check_router(timeout=2):
+    try:
+        key = read_key()
+    except ValueError:
+        key = ''
+    try:
+        with request_router('/v1/models', key, timeout=timeout) as response:
+            return getattr(response, 'status', 200) == 200
+    except ERRORS:
+        return False
 
 def fetch_models():
     try:
@@ -209,7 +232,6 @@ def fetch_models():
     except ERRORS:
         return [], 'Models unavailable; type a model ID manually'
 
-
 def test_model(model):
     validate_models([model])
     start, key = time.monotonic(), ''
@@ -217,7 +239,7 @@ def test_model(model):
         key = read_key()
         with request_router('/api/v1/messages', key, {'model': model, 'max_tokens': 30,
                             'messages': [{'role': 'user', 'content': 'Say OK'}]}) as response:
-            ok = response.status == 200  # SSE need not finish before reporting success.
+            ok = response.status == 200
             message = 'OK' if ok else f'HTTP {response.status}: ' + clean(response.read(1024).decode('utf-8', 'replace'), key)[:120]
     except urllib.error.HTTPError as exc:
         try:
@@ -229,7 +251,6 @@ def test_model(model):
         ok, message = False, 'Request failed (check key, router URL, connection or timeout)'
     return ok, f'{message} ({time.monotonic() - start:.2f}s)'
 
-
 def save_combo(combos, name, models, apply=True):
     if name not in combos:
         raise ValueError(f'Unknown combo: {name}')
@@ -240,8 +261,7 @@ def save_combo(combos, name, models, apply=True):
     if not apply:
         return True, 'Saved (apply skipped)'
     try:
-        result = subprocess.run(['python3', str(REPO / '9router/apply-combos.py')],
-                                cwd=REPO, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(['python3', str(REPO / '9router/apply-combos.py')], cwd=REPO, capture_output=True, text=True, timeout=120)
         try:
             key = read_key()
         except ValueError:
@@ -250,37 +270,373 @@ def save_combo(combos, name, models, apply=True):
     except (OSError, subprocess.TimeoutExpired):
         return False, 'Saved, but apply failed to start or timed out; rerun 9router/apply-combos.py'
 
+def supports_unicode(encoding=None):
+    enc = encoding or getattr(sys.stdout, 'encoding', None) or locale.getpreferredencoding(False) or 'ascii'
+    try:
+        '─│┌┐└┘●✓✗▸…'.encode(enc)
+        return True
+    except (LookupError, UnicodeEncodeError):
+        return False
 
-def put(screen, row, text, attr=0):
-    height, width = screen.getmaxyx()
-    if 0 <= row < height and width > 1:
+def glyphs(unicode_ok=None):
+    if supports_unicode() if unicode_ok is None else bool(unicode_ok):
+        return {'hline': '─', 'vline': '│', 'sep': ' │ ', 'dot': '●', 'ok': '✓', 'err': '✗', 'arrow': '▸', 'ellipsis': '…'}
+    return {'hline': '-', 'vline': '|', 'sep': ' | ', 'dot': '*', 'ok': '+', 'err': 'x', 'arrow': '>', 'ellipsis': '...'}
+
+def color_enabled(env=None):
+    return 'NO_COLOR' not in (os.environ if env is None else env)
+
+def init_colors():
+    global COLORS_READY
+    COLORS_READY = False
+    if not color_enabled():
         try:
-            screen.addnstr(row, 0, clean(text).replace('\n', ' '), width - 1, attr)
+            curses.use_default_colors()  # wrapper() already ran start_color(); keep the terminal's own colors
+        except curses.error:
+            pass
+        return False
+    try:
+        curses.start_color()
+        try:
+            curses.use_default_colors()
+            bg = -1
+        except curses.error:
+            bg = curses.COLOR_BLACK
+        if not curses.has_colors():
+            return False
+        for pid, fg, back in (
+            (PAIR_HEADER, curses.COLOR_WHITE, curses.COLOR_BLUE), (PAIR_SELECTED, curses.COLOR_BLACK, curses.COLOR_CYAN),
+            (PAIR_GREEN, curses.COLOR_GREEN, bg), (PAIR_BLUE, curses.COLOR_BLUE, bg),
+            (PAIR_YELLOW, curses.COLOR_YELLOW, bg), (PAIR_RED, curses.COLOR_RED, bg),
+            (PAIR_MAGENTA, curses.COLOR_MAGENTA, bg), (PAIR_CYAN, curses.COLOR_CYAN, bg),
+            (PAIR_WHITE, curses.COLOR_WHITE, bg), (PAIR_KEY, curses.COLOR_BLACK, curses.COLOR_CYAN),
+            (PAIR_HDR_OK, curses.COLOR_GREEN, curses.COLOR_BLUE), (PAIR_HDR_ERR, curses.COLOR_RED, curses.COLOR_BLUE),
+        ):
+            curses.init_pair(pid, fg, back)
+        COLORS_READY = True
+        return True
+    except curses.error:
+        return False
+
+def c_attr(pair_id, extra=0, fallback=0):
+    if COLORS_READY and color_enabled():
+        try:
+            return curses.color_pair(pair_id) | extra
+        except curses.error:
+            pass
+    return fallback | extra
+
+def effort_attr(effort, selected=False):
+    pair_id, extra, fallback = EFFORT_STYLES.get(effort, (PAIR_WHITE, 0, 0))
+    base = c_attr(pair_id, extra, fallback)
+    return (base | curses.A_REVERSE | curses.A_BOLD) if selected else base
+
+def model_provider(model):
+    text = str(model)
+    return 'cx' if text.startswith('cx/') else 'ag' if text.startswith('ag/') else 'other'
+
+def model_attr(model, first=False, selected=False):
+    prov = model_provider(model)
+    pair_id = PAIR_CYAN if prov == 'cx' else PAIR_YELLOW if prov == 'ag' else PAIR_WHITE
+    weight = curses.A_BOLD if first else 0
+    base = c_attr(pair_id, weight, weight)
+    return (base | curses.A_REVERSE | curses.A_BOLD) if selected else base
+
+def combo_pair(name):
+    return COMBO_PAIRS[name] if name in COMBO_PAIRS else COMBO_PALETTE[sum(ord(c) for c in str(name)) % len(COMBO_PALETTE)]
+def combo_attr(name, selected=False):
+    base = c_attr(combo_pair(name), curses.A_BOLD, curses.A_BOLD)
+    return (base | curses.A_REVERSE | curses.A_BOLD) if selected else base
+
+def notice_kind(text):
+    low = str(text or '').casefold()
+    if low.startswith(('error', 'lỗi', '✗', 'http ', 'request failed', 'models unavailable')):
+        return 'error'
+    if low.startswith(('shared by', 'cảnh báo', 'warning', '● chưa lưu', '* chưa lưu', '⚠', 'dùng chung')):
+        return 'warn'
+    return 'ok' if low.startswith(('saved', 'đã ', 'ok', '✓', '9router: online', 'khôi phục', 'thành công')) else 'info'
+
+def notice_attr(text):
+    kind = notice_kind(text)
+    pairs = {'error': (PAIR_RED, curses.A_BOLD), 'warn': (PAIR_YELLOW, curses.A_BOLD), 'ok': (PAIR_GREEN, curses.A_BOLD)}
+    pair_id, extra = pairs.get(kind, (PAIR_WHITE, 0))
+    return c_attr(pair_id, extra, extra)
+
+def is_overridden(workers, overrides, role):
+    return role in workers and (effective(workers, overrides, role) != (workers[role]['model'], 'max') or bool(overrides.get(role)))
+
+def short_path(path=None):
+    target = Path(path) if path is not None else company_dir()
+    try:
+        return '~/' + str(target.expanduser().relative_to(Path.home()))
+    except ValueError:
+        return str(target)
+
+def clip(text, width, ellipsis='…'):
+    text = clean(text).replace('\n', ' ')
+    if width <= 0:
+        return ''
+    return text if len(text) <= width else (ellipsis[:width] if width <= len(ellipsis) else text[:width - len(ellipsis)] + ellipsis)
+
+def pad(text, width, ellipsis='…'):
+    clipped = clip(text, width, ellipsis)
+    return clipped + ' ' * max(0, width - len(clipped)) if width > 0 else ''
+
+def format_header(screen_name, width, online=False, cfg_path=None, dirty=False, unicode_ok=True):
+    g, avail = glyphs(unicode_ok), max(1, width - 1)
+    status_lbl = f"{g['dot']} {'online' if online else 'offline'}"
+    dirty_lbl = f" {g['dot']} chưa lưu" if dirty else ''
+    sep, cfg = g['sep'], short_path(cfg_path)
+    left = f" 9r-config{sep}{screen_name}{dirty_lbl}" + (f"{sep}{cfg}" if width >= 60 else '')
+    right = f"9router: {status_lbl} " if width >= 60 else f"{status_lbl} "
+    left_part = clip(left, max(0, avail - len(right) - 1), g['ellipsis'])
+    line = pad(left_part + ' ' * max(1, avail - len(left_part) - len(right)) + right, avail, g['ellipsis'])
+    segs = []
+    if dirty_lbl and dirty_lbl in line:
+        segs.append((line.index(dirty_lbl), dirty_lbl, c_attr(PAIR_YELLOW, curses.A_BOLD, curses.A_BOLD)))
+    if status_lbl in line:
+        s_pair = PAIR_HDR_OK if online else PAIR_HDR_ERR
+        segs.append((line.rindex(status_lbl), status_lbl, c_attr(s_pair, curses.A_BOLD, curses.A_REVERSE | curses.A_BOLD)))
+    return line, segs
+
+def role_layout(width, unicode_ok=True):
+    avail, sep = max(20, width - 1), glyphs(unicode_ok)['sep']
+    if width < 60:
+        combo_w, effort_w = 10, 6
+        return {'show_model': False, 'role_w': max(8, avail - 2 - combo_w - effort_w - len(sep) * 2), 'combo_w': combo_w, 'effort_w': effort_w, 'model_w': 0, 'sep': sep}
+    role_w, combo_w, effort_w = max(14, min(22, avail * 24 // 100)), max(10, min(14, avail * 16 // 100)), 7
+    return {'show_model': True, 'role_w': role_w, 'combo_w': combo_w, 'effort_w': effort_w, 'model_w': max(10, avail - 2 - role_w - combo_w - effort_w - len(sep) * 3), 'sep': sep}
+
+def format_role_header(width, unicode_ok=True):
+    g, lay = glyphs(unicode_ok), role_layout(width, unicode_ok)
+    cols = [pad('ROLE (*=ghi đè)', lay['role_w'], g['ellipsis']), pad('COMBO', lay['combo_w'], g['ellipsis']), pad('EFFORT', lay['effort_w'], g['ellipsis'])]
+    if lay['show_model']:
+        cols.append(pad('MODEL ĐẦU (ƯU TIÊN)', lay['model_w'], g['ellipsis']))
+    return '  ' + lay['sep'].join(cols)
+
+def format_role_row(role, combo, effort, first_model, width, overridden=False, selected=False, unicode_ok=True):
+    g, lay = glyphs(unicode_ok), role_layout(width, unicode_ok)
+    sep, el, prefix = lay['sep'], g['ellipsis'], (g['arrow'] + ' ') if selected else '  '
+    role_str = pad(f'{role} *' if overridden else role, lay['role_w'], el)
+    combo_str, effort_str = pad(f'[{combo}]', lay['combo_w'], el), pad(effort, lay['effort_w'], el)
+    parts = [role_str, combo_str, effort_str]
+    if lay['show_model']:
+        model_str = pad(first_model, lay['model_w'], el)
+        parts.append(model_str)
+    line = pad(prefix + sep.join(parts), max(1, width - 1), el)
+    r_attr = c_attr(PAIR_YELLOW, curses.A_BOLD, curses.A_BOLD) if overridden else (curses.A_BOLD if selected else 0)
+    if selected:
+        r_attr |= curses.A_REVERSE | curses.A_BOLD
+    col = len(prefix)
+    cells = [(col, role_str, r_attr)]
+    col += len(role_str) + len(sep)
+    cells.append((col, combo_str, combo_attr(combo, selected=selected)))
+    col += len(combo_str) + len(sep)
+    cells.append((col, effort_str, effort_attr(effort, selected=selected)))
+    if lay['show_model']:
+        col += len(effort_str) + len(sep)
+        cells.append((col, model_str, model_attr(first_model, first=True, selected=selected)))
+    return line, cells
+
+def format_test_badge(result, unicode_ok=True):
+    g = glyphs(unicode_ok)
+    if not result:
+        return ('—' if unicode_ok else '-', 'none')
+    ok, message = result
+    msg, dur = str(message).strip(), ''
+    if msg.endswith('s)') and '(' in msg:
+        head, _, tail = msg.rpartition('(')
+        dur, msg = tail[:-1].strip(), head.strip()
+    if ok:
+        return (f"{g['ok']} {dur}".strip(), 'ok')
+    return (f"{g['err']} {msg.split(':', 1)[0].strip() if ':' in msg else 'lỗi'} {dur}".strip(), 'err')
+
+def format_combo_header(width, unicode_ok=True):
+    g = glyphs(unicode_ok)
+    avail, sep, idx_w, status_w = max(20, width - 1), g['sep'], 4, (12 if width < 60 else 18)
+    model_w = max(8, avail - 2 - idx_w - status_w - len(sep) * 2)
+    return '  ' + sep.join((pad('#STT', idx_w, g['ellipsis']), pad('MODEL (ƯU TIÊN → FALLBACK)', model_w, g['ellipsis']), pad('KẾT QUẢ TEST', status_w, g['ellipsis'])))
+
+def format_combo_row(index, model, width, test_result=None, selected=False, unicode_ok=True):
+    g = glyphs(unicode_ok)
+    el, avail, sep, idx_w, status_w = g['ellipsis'], max(20, width - 1), g['sep'], 4, (12 if width < 60 else 18)
+    model_w = max(8, avail - 2 - idx_w - status_w - len(sep) * 2)
+    prefix = (g['arrow'] + ' ') if selected else '  '
+    idx_str, mod_str = pad(f'#{index + 1}', idx_w, el), pad(model, model_w, el)
+    badge_txt, badge_kind = format_test_badge(test_result, unicode_ok=unicode_ok)
+    stat_str = pad(badge_txt, status_w, el)
+    line = pad(prefix + sep.join((idx_str, mod_str, stat_str)), avail, el)
+    idx_attr = c_attr(PAIR_WHITE, curses.A_BOLD if index == 0 else curses.A_DIM, curses.A_BOLD if index == 0 else curses.A_DIM)
+    s_attr = c_attr(PAIR_GREEN, curses.A_BOLD, curses.A_BOLD) if badge_kind == 'ok' else (
+        c_attr(PAIR_RED, curses.A_BOLD, curses.A_BOLD) if badge_kind == 'err' else c_attr(PAIR_WHITE, curses.A_DIM, curses.A_DIM))
+    if selected:
+        idx_attr |= curses.A_REVERSE | curses.A_BOLD
+        s_attr |= curses.A_REVERSE | curses.A_BOLD
+    col = len(prefix)
+    cells = [(col, idx_str, idx_attr)]
+    col += len(idx_str) + len(sep)
+    cells.append((col, mod_str, model_attr(model, first=(index == 0), selected=selected)))
+    col += len(mod_str) + len(sep)
+    cells.append((col, stat_str, s_attr))
+    return line, cells
+
+def role_hint(role, combo, effort, overridden=False):
+    return f'{role} dùng combo {combo}, effort {effort}: bấm e để đổi, c để đổi combo, 1-5 mức nhanh, Enter chuỗi model' + (' (*đã ghi đè)' if overridden else '')
+
+def combo_hint(name, models, selected, dirty=False):
+    state = ' (● chưa lưu)' if dirty else ''
+    if not models:
+        return f'Combo {name}{state} đang trống: bấm a để thêm model, Esc để quay lại'
+    idx = min(max(0, selected), len(models) - 1)
+    return f'{models[idx]} ({"ưu tiên #1" if idx == 0 else f"fallback #{idx + 1}"} trong {name}{state}): bấm K/J đổi thứ tự, t test, a thêm, d xoá, s lưu'
+
+def keys_bar(context, width):
+    bars = {
+        'roles': ('e/1-5 effort  c combo  Enter sửa  r reset  ? giúp  q thoát', 'e effort  c combo  Enter chuỗi model  r reset  ? trợ giúp  q thoát  1-5 nhanh  F5/R router'),
+        'combo': ('K/J thứ tự  a thêm  d xoá  t test  s lưu  ? giúp  Esc về', 'K/J thứ tự  a thêm  d xoá  t test  s lưu  F5/R router  ? trợ giúp  Esc quay lại'),
+        'pick_manual': ('↑/↓ chọn  gõ lọc  Enter lấy  Tab nhập tay  Esc về', 'Up/Down chọn  gõ để lọc  Enter chọn  Tab nhập tay  Esc quay lại'),
+        'pick': ('↑/↓ chọn  gõ lọc  Enter lấy  Esc về', 'Up/Down chọn  gõ để lọc  Enter xác nhận  Esc quay lại'),
+        'confirm': ('y đồng ý  n/Esc huỷ', 'y đồng ý  n/Esc huỷ'),
+        'help': ('Bấm phím bất kỳ để đóng trợ giúp', 'Bấm phím bất kỳ để đóng trợ giúp'),
+    }
+    short, full = bars.get(context, ('Up/Down cuộn  Enter/Esc đóng', 'Up/Down cuộn  Enter/Esc đóng'))
+    return short if width < 60 else full
+
+def parse_key_spans(keys_text, width):
+    text = clip(keys_text, max(0, width - 1), glyphs()['ellipsis'])
+    if not text:
+        return []
+    sep = ' | ' if ' | ' in text and '  ' not in text else '  '
+    if sep not in text:
+        return [(0, text, False)]
+    spans, col = [], 0
+    for idx, chunk in enumerate(text.split(sep)):
+        if idx > 0:
+            spans.append((col, sep, False))
+            col += len(sep)
+        key_part, space, desc_part = chunk.partition(' ')
+        if key_part:
+            spans.append((col, key_part, True))
+            col += len(key_part)
+        if space:
+            spans.append((col, space + desc_part, False))
+            col += 1 + len(desc_part)
+    return spans
+
+def help_lines(context='roles', role='<role>', combo='<tên>'):
+    screen_keys = [
+        '[Phím tắt màn Combo]',
+        '  ↑/↓, j/k : Chọn model          K / J   : Đẩy model lên/xuống đổi ưu tiên',
+        '  a        : Thêm model mới      d       : Xoá model đang chọn',
+        '  t        : Test model (60s)    s       : Lưu combos.json & áp dụng 9router',
+        '  F5 / R   : Kiểm tra 9router    ? / Esc : Trợ giúp / Quay lại màn Roles',
+    ] if context == 'combo' else [
+        '[Phím tắt màn Roles]',
+        '  ↑/↓, j/k : Chọn role           e       : Đổi effort (low→medium→high→xhigh→max)',
+        '  1 - 5    : Đặt nhanh effort (1=low, 2=medium, 3=high, 4=xhigh, 5=max)',
+        '  c        : Đổi combo cho role  Enter   : Mở sửa chuỗi model của combo',
+        '  r        : Reset về mặc định   F5 / R  : Kiểm tra 9router (timeout 2s)',
+        '  ?        : Mở trợ giúp này     q       : Thoát 9r-config',
+    ]
+    return screen_keys + [
+        '[Lệnh CLI tương đương (có thể copy)]',
+        '  9r-config list',
+        '  9r-config set <role> --effort high --combo w-ui',
+        '  9r-config reset <role>',
+        '  9r-config combo <tên> --set a,b,c',
+        '  9r-config test <model>',
+        '[Cách chạy worker & Nơi lưu file cấu hình]',
+        '  Chạy worker : 9r <role> "<brief>"',
+        f'  File role   : {short_path()}/roles.json (lưu ghi đè combo/effort từng role)',
+        '  File combo  : 9router/combos.json (lưu chuỗi model ưu tiên → fallback)',
+    ]
+
+def put(screen, row, text, attr=0, col=0):
+    height, width = screen.getmaxyx()
+    if 0 <= row < height and 0 <= col < width - 1:
+        try:
+            screen.addnstr(row, col, clean(text).replace('\n', ' '), width - 1 - col, attr)
         except curses.error:
             pass
 
-
-def draw(screen, title, rows, selected, notice, keys):
+def draw(screen, title, rows, selected, notice, keys, *, hint='', col_header='', row_cells=None, status=None, dirty=False):
     screen.erase()
-    height, _ = screen.getmaxyx()
-    put(screen, 0, title, curses.A_BOLD)
-    count = max(0, height - 4)
+    height, width = screen.getmaxyx()
+    if width < 30:
+        put(screen, min(max(0, height - 1), height // 2), 'terminal quá hẹp', c_attr(PAIR_RED, curses.A_BOLD, curses.A_BOLD))
+        screen.refresh()
+        return
+    uni, online = supports_unicode(), bool(status.get('online')) if isinstance(status, dict) else False
+    g = glyphs(uni)
+    hdr_line, hdr_segs = format_header(title, width, online=online, dirty=dirty, unicode_ok=uni)
+    put(screen, 0, hdr_line, c_attr(PAIR_HEADER, curses.A_BOLD, curses.A_REVERSE | curses.A_BOLD))
+    for seg_col, seg_txt, seg_attr in hdr_segs:
+        put(screen, 0, seg_txt, seg_attr, col=seg_col)
+    top = 1
+    if col_header and height >= 7:
+        put(screen, 1, clip(col_header, width - 1, g['ellipsis']), c_attr(PAIR_WHITE, curses.A_BOLD, curses.A_BOLD))
+        top = 2
+        if height >= 8:
+            put(screen, 2, g['hline'] * (width - 1), c_attr(PAIR_WHITE, curses.A_DIM, curses.A_DIM))
+            top = 3
+    footer_rows = 3 if (hint and height >= 6) else 2
+    count = max(0, height - top - footer_rows)
     first = max(0, selected - count + 1)
     for index in range(first, min(len(rows), first + count)):
-        put(screen, index - first + 1, rows[index], curses.A_REVERSE if index == selected else 0)
-    put(screen, height - 3, notice)
-    put(screen, height - 1, keys)
+        row_y, is_sel = index - first + top, index == selected
+        base_attr = c_attr(PAIR_SELECTED, curses.A_BOLD, curses.A_REVERSE | curses.A_BOLD) if is_sel else 0
+        put(screen, row_y, pad(rows[index], width - 1, g['ellipsis']) if is_sel else clip(rows[index], width - 1, g['ellipsis']), base_attr)
+        if row_cells and index < len(row_cells) and row_cells[index]:
+            for cell_col, cell_txt, cell_attr in row_cells[index]:
+                put(screen, row_y, cell_txt, cell_attr, col=cell_col)
+    if hint and height >= 6:
+        if notice:
+            put(screen, height - 3, clip(notice, width - 1, g['ellipsis']), notice_attr(notice))
+        put(screen, height - 2, clip(hint, width - 1, g['ellipsis']), c_attr(PAIR_CYAN, 0, curses.A_DIM))
+    elif height >= 4:
+        put(screen, height - 2, clip(notice, width - 1, g['ellipsis']), notice_attr(notice))
+    if height >= 2:
+        bar_txt = clip(keys, width - 1, g['ellipsis'])
+        put(screen, height - 1, bar_txt, c_attr(PAIR_WHITE, 0, curses.A_DIM))
+        key_style, desc_style = c_attr(PAIR_KEY, curses.A_BOLD, curses.A_REVERSE | curses.A_BOLD), c_attr(PAIR_WHITE, 0, 0)
+        for span_col, span_txt, is_key in parse_key_spans(bar_txt, width):
+            put(screen, height - 1, span_txt, key_style if is_key else desc_style, col=span_col)
     screen.refresh()
 
+def get_key(screen):
+    try:
+        key = screen.get_wch()
+    except curses.error:
+        return curses.KEY_RESIZE
+    if key == curses.KEY_RESIZE:
+        try:
+            curses.update_lines_cols()
+        except (curses.error, AttributeError):
+            pass
+    return key
 
-def pick(screen, title, options, manual=False, notice=''):
+def help_screen(screen, context='roles', role='<role>', combo='<tên>', status=None):
+    lines = help_lines(context, role, combo)
+    while True:
+        _, width = screen.getmaxyx()
+        cells = [[(0, clip(ln, max(1, width - 1)), c_attr(PAIR_YELLOW if ln.startswith('[') else PAIR_CYAN, curses.A_BOLD, curses.A_BOLD))]
+                 if ln.startswith('[') or '9r-config ' in ln or '9r <role>' in ln else [] for ln in lines]
+        draw(screen, 'Trợ giúp (?)', lines, 0, f'Đang chọn: role={role} combo={combo} — có thể copy các lệnh CLI bên trên',
+             keys_bar('help', width), hint='Bấm phím bất kỳ để đóng lớp trợ giúp và quay lại màn trước', row_cells=cells, status=status)
+        if get_key(screen) != curses.KEY_RESIZE:
+            return
+
+def pick(screen, title, options, manual=False, notice='', status=None):
     query, selected = '', 0
     while True:
+        _, width = screen.getmaxyx()
         matches = [item for item in options if query.casefold() in item.casefold()]
         selected = min(selected, max(0, len(matches) - 1))
-        draw(screen, title + ' / ' + query, matches, selected, notice,
-             'Up/Down select | type filter | Enter choose | Tab manual | Esc back' if manual else 'Up/Down | type filter | Enter | Esc')
-        key = screen.get_wch()
+        hint = f'Đang lọc "{query}" ({len(matches)} mục): gõ ký tự để lọc, Enter để chọn' + (', Tab lấy chữ vừa gõ' if manual else '')
+        draw(screen, f'{title} / {query}', matches, selected, notice, keys_bar('pick_manual' if manual else 'pick', width), hint=hint, status=status)
+        key = get_key(screen)
+        if key == curses.KEY_RESIZE:
+            continue
         if key == '\x1b':
             return None
         if manual and key == '\t' and query:
@@ -294,64 +650,87 @@ def pick(screen, title, options, manual=False, notice=''):
         elif isinstance(key, str) and key.isprintable():
             query, selected = query + key, 0
 
-
-def popup(screen, message):
-    rows, selected = clean(message).splitlines(), 0
+def popup(screen, message, status=None):
+    rows, selected = clean(message).splitlines() or [''], 0
     while True:
-        draw(screen, 'Result', rows, selected, '', 'Up/Down scroll | Enter/Esc back')
-        key = screen.get_wch()
+        _, width = screen.getmaxyx()
+        draw(screen, 'Kết quả', rows, selected, '', keys_bar('popup', width), hint='Bấm Enter hoặc Esc để đóng thông báo kết quả', status=status)
+        key = get_key(screen)
+        if key == curses.KEY_RESIZE:
+            continue
         if key in ('\n', '\r', '\x1b', curses.KEY_ENTER):
             return
         selected = max(0, min(len(rows) - 1, selected + (1 if key in ('j', curses.KEY_DOWN) else -1 if key in ('k', curses.KEY_UP) else 0)))
 
-
-def confirm(screen, message):
+def confirm(screen, message, status=None):
     while True:
-        draw(screen, message, [], 0, '', 'y confirm | n/Esc cancel')
-        key = screen.get_wch()
+        _, width = screen.getmaxyx()
+        draw(screen, message, [], 0, message, keys_bar('confirm', width), hint='Bấm y để xác nhận thực hiện, hoặc n / Esc để huỷ bỏ', status=status)
+        key = get_key(screen)
+        if key == curses.KEY_RESIZE:
+            continue
         if key in ('y', 'Y', 'n', 'N', '\x1b'):
             return key in ('y', 'Y')
 
-
-def combo_screen(screen, name, combos, shared):
-    models, selected, notice = list(combos[name]), 0, ''
+def combo_screen(screen, name, combos, shared, status=None):
+    models, selected, notice, test_results = list(combos[name]), 0, '', {}
     warning = 'Shared by ' + ', '.join(shared) + '; changes affect ALL roles' if len(shared) > 1 else ''
     while True:
-        selected = min(selected, max(0, len(models) - 1))
-        dirty = models != combos[name]
-        draw(screen, 'Combo ' + name + (' *' if dirty else ''), models, selected, notice or warning,
-             'K/J reorder | d delete | a add | t test | s save | Esc back')
-        key = screen.get_wch()
+        _, width = screen.getmaxyx()
+        uni, selected, dirty = supports_unicode(), min(selected, max(0, len(models) - 1)), models != combos[name]
+        rows, row_cells = [], []
+        for idx, mod in enumerate(models):
+            r_txt, r_cells = format_combo_row(idx, mod, width, test_results.get(mod), selected=(idx == selected), unicode_ok=uni)
+            rows.append(r_txt)
+            row_cells.append(r_cells)
+        draw(screen, f'Combo {name}', rows, selected, notice or warning,
+             keys_bar('combo', width), hint=combo_hint(name, models, selected, dirty=dirty),
+             col_header=format_combo_header(width, unicode_ok=uni), row_cells=row_cells, status=status, dirty=dirty)
+        key = get_key(screen)
+        if key == curses.KEY_RESIZE:
+            continue
+        notice = ''
         try:
             if key == '\x1b':
-                if not dirty or confirm(screen, 'Discard unsaved changes?'):
+                if not dirty or confirm(screen, 'Discard unsaved changes?', status=status):
                     return
-            elif key in ('j', curses.KEY_DOWN, 'k', curses.KEY_UP):
+            elif key == '?':
+                help_screen(screen, 'combo', combo=name, status=status)
+            elif key in ('R', curses.KEY_F5) and isinstance(status, dict):
+                status['online'] = check_router(timeout=2)
+                notice = '9router: online' if status['online'] else 'Error: 9router offline'
+            elif key in ('j', curses.KEY_DOWN, 'k', curses.KEY_UP) and models:
                 selected = max(0, min(len(models) - 1, selected + (1 if key in ('j', curses.KEY_DOWN) else -1)))
             elif key in ('K', 'J') and models:
                 target = selected + (1 if key == 'J' else -1)
                 if 0 <= target < len(models):
                     models[selected], models[target] = models[target], models[selected]
                     selected = target
+                    notice = f'Đã chuyển {models[selected]} sang vị trí #{selected + 1}'
             elif key == 'd' and models:
-                models.pop(selected)
+                notice = f'Đã xoá {models.pop(selected)} khỏi {name}'
             elif key == 'a':
-                draw(screen, 'Loading models...', models, selected, warning, 'Ctrl-C cancel')
-                available, status = fetch_models()
-                model = pick(screen, 'Add model', available, True, status)
+                draw(screen, 'Loading models...', rows, selected, warning, 'Ctrl-C cancel', status=status, dirty=dirty)
+                available, load_status = fetch_models()
+                model = pick(screen, 'Add model', available, True, load_status, status=status)
                 if model:
                     validate_models([model])
                     models.append(model)
                     selected = len(models) - 1
+                    notice = f'Đã thêm {model} vào vị trí #{selected + 1}'
             elif key == 't' and models:
-                draw(screen, 'Testing (up to 60s)...', models, selected, warning, 'Ctrl-C cancel')
-                popup(screen, test_model(models[selected])[1])
-            elif key == 's' and confirm(screen, 'Save combo? ' + warning):
-                popup(screen, save_combo(combos, name, models)[1])
-            notice = ''
+                target_model = models[selected]
+                draw(screen, 'Testing (up to 60s)...', rows, selected, warning, 'Ctrl-C cancel', status=status, dirty=dirty)
+                ok, msg = test_model(target_model)
+                test_results[target_model] = (ok, msg)
+                popup(screen, msg, status=status)
+                notice = ('✓ ' if ok else 'Error: ') + f'{target_model} — {msg}'
+            elif key == 's' and confirm(screen, 'Save combo? ' + warning, status=status):
+                ok, msg = save_combo(combos, name, models)
+                popup(screen, msg, status=status)
+                notice = f'Đã lưu combo {name}' if ok else 'Error: ' + msg.splitlines()[0]
         except ERRORS as exc:
             notice = 'Error: ' + str(exc)
-
 
 def tui(screen, workers, overrides, combos):
     try:
@@ -359,35 +738,67 @@ def tui(screen, workers, overrides, combos):
     except curses.error:
         pass
     screen.keypad(True)
+    init_colors()
+    status = {'online': False}
+    probe = threading.Thread(target=lambda: status.__setitem__('online', check_router(timeout=2)), daemon=True)
+    probe.start()
     roles, selected, notice = list(workers), 0, ''
+
+    def render_roles():
+        _, width = screen.getmaxyx()
+        uni, rows, row_cells = supports_unicode(), [], []
+        for idx, r_name in enumerate(roles):
+            c_name, eff = effective(workers, overrides, r_name)
+            r_txt, r_cells = format_role_row(
+                r_name, c_name, eff, combos[c_name][0], width,
+                overridden=is_overridden(workers, overrides, r_name), selected=(idx == selected), unicode_ok=uni)
+            rows.append(r_txt)
+            row_cells.append(r_cells)
+        cur_role = roles[selected]
+        cur_combo, cur_effort = effective(workers, overrides, cur_role)
+        draw(screen, 'Roles', rows, selected, notice, keys_bar('roles', width),
+             hint=role_hint(cur_role, cur_combo, cur_effort, is_overridden(workers, overrides, cur_role)),
+             col_header=format_role_header(width, unicode_ok=uni), row_cells=row_cells, status=status)
+
+    render_roles()
+    probe.join(timeout=0.05)
     while True:
-        rows = []
-        for role in roles:
-            combo, effort = effective(workers, overrides, role)
-            rows.append(f'{role} | {combo} | {effort} | {combos[combo][0]}')
-        draw(screen, 'Roles: role | combo | effort | first model', rows, selected, notice,
-             'Up/Down/j/k | e effort | c combo | Enter edit | r reset | q quit')
-        key, role = screen.get_wch(), roles[selected]
+        render_roles()
+        key, role = get_key(screen), roles[selected]
+        if key == curses.KEY_RESIZE:
+            continue
         combo, effort = effective(workers, overrides, role)
+        notice = ''
         try:
             if key == 'q':
                 return
             if key in ('j', curses.KEY_DOWN, 'k', curses.KEY_UP):
                 selected = (selected + (1 if key in ('j', curses.KEY_DOWN) else -1)) % len(roles)
             elif key == 'e':
-                overrides = save_role(workers, combos, role, effort=EFFORTS[(EFFORTS.index(effort) + 1) % len(EFFORTS)])
+                nxt = EFFORTS[(EFFORTS.index(effort) + 1) % len(EFFORTS)]
+                overrides = save_role(workers, combos, role, effort=nxt)
+                notice = f'Đã đổi effort {role} → {nxt}'
+            elif key in ('1', '2', '3', '4', '5'):
+                nxt = EFFORTS[int(key) - 1]
+                overrides = save_role(workers, combos, role, effort=nxt)
+                notice = f'Đã đặt effort {role} = {nxt}'
             elif key == 'c':
-                chosen = pick(screen, 'Choose combo', list(combos))
+                chosen = pick(screen, 'Choose combo', list(combos), status=status)
                 if chosen:
                     overrides = save_role(workers, combos, role, combo=chosen)
+                    notice = f'Đã đổi combo {role} → {chosen}'
             elif key == 'r':
                 overrides = save_role(workers, combos, role, reset=True)
+                notice = f'Đã khôi phục mặc định cho {role}'
+            elif key == '?':
+                help_screen(screen, 'roles', role=role, combo=combo, status=status)
+            elif key in ('R', curses.KEY_F5):
+                status['online'] = check_router(timeout=2)
+                notice = '9router: online' if status['online'] else 'Error: 9router offline'
             elif key in ('\n', '\r', curses.KEY_ENTER):
-                combo_screen(screen, combo, combos, [r for r in roles if effective(workers, overrides, r)[0] == combo])
-            notice = ''
+                combo_screen(screen, combo, combos, [r for r in roles if effective(workers, overrides, r)[0] == combo], status=status)
         except ERRORS as exc:
             notice = 'Error: ' + str(exc)
-
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Configure 9r worker combos and effort; no arguments opens TUI')
@@ -409,8 +820,7 @@ def main(argv=None):
             ok, message = test_model(args.model)
             print(message)
             return 0 if ok else 1
-        workers = load_json(REPO / 'company/workers.json')
-        combos = load_json(REPO / '9router/combos.json')
+        workers, combos = load_json(REPO / 'company/workers.json'), load_json(REPO / '9router/combos.json')
         overrides = load_json(company_dir() / 'roles.json', missing=True)
         validate(workers, overrides, combos)
         if args.command == 'list':
@@ -436,7 +846,6 @@ def main(argv=None):
         print('Error: ' + clean(exc), file=sys.stderr)
         return 1
     return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())
