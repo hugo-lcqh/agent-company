@@ -152,6 +152,7 @@ try:
     links += [(repo / "skills" / name, home / ".claude/skills" / name)
               for name in ("engineering", "marketing")]
     links.append((repo / "bin/9r", home / ".local/bin/9r"))
+    links.append((repo / "bin/9r-config", home / ".local/bin/9r-config"))
     for source in [src for src, _ in links] + [repo / "requirements.txt", repo / "claude-md/company-9r.md"]:
         if not source.exists():
             raise ValueError(f"Missing repository file: {source}")

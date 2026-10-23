@@ -148,6 +148,22 @@ Sửa file và điền **cả `POSTIZ_API_URL` lẫn `POSTIZ_API_KEY`** bằng g
 - `9r` chạy với môi trường được làm sạch, nên không trông chờ biến Postiz export ở dispatcher tự truyền tới worker; file cấu hình mặc định là cách dùng chung được hỗ trợ.
 - Theo skill marketing, dispatcher lấy kênh bằng `get_postiz_channels`, upload ảnh rồi tạo bài qua `publish_to_postiz`. Mặc định là `draft`; chỉ chọn `schedule` khi người dùng yêu cầu rõ và đã duyệt. Khi sửa bằng `edit_postiz_post`, phải truyền đủ `media_ids` muốn giữ; `[]` nghĩa là bỏ ảnh.
 
+## Tùy chỉnh model và effort: `9r-config`
+
+Giao diện terminal để chỉnh từng worker mà không phải sửa JSON:
+
+```bash
+9r-config            # mở TUI
+9r-config list       # in bảng role / combo / effort / chuỗi model
+```
+
+- **Màn Roles:** `↑↓`/`jk` chọn role, `e` đổi effort (low → medium → high → xhigh → max), `c` gán combo khác, `r` xoá ghi đè, `Enter` mở chuỗi model của combo, `q` thoát.
+- **Màn Combo:** `K`/`J` đổi thứ tự fallback, `d` xoá, `a` thêm model (lọc theo chữ gõ, lấy từ 9router), `t` thử gọi model đang chọn, `s` lưu, `Esc` quay lại. Combo dùng chung giữa nhiều role sẽ có cảnh báo; chỉnh combo ảnh hưởng tất cả role đó.
+- **Phạm vi lưu:** đổi effort/combo của role lưu ngay vào `~/.claude/company/roles.json` (quyền 600) và `9r` đọc file này ở mỗi lần chạy. Đổi chuỗi model ghi vào `9router/combos.json` rồi chạy `apply-combos.py` để cập nhật 9router.
+- **Ưu tiên effort:** `NINER_EFFORT` > `roles.json` > mặc định `max`.
+
+Dùng không tương tác (script): `9r-config set <role> [--combo w-x] [--effort e]`, `9r-config reset <role>`, `9r-config combo <tên> --set m1,m2 [--no-apply]`, `9r-config test <model>`. Biến `NINER_COMPANY_DIR` và `NINER_ROUTER_URL` đổi thư mục cấu hình và địa chỉ 9router.
+
 ## Các role worker
 
 Nguồn: [`company/workers.json`](company/workers.json). Tên role là đối số thứ nhất của `9r`.

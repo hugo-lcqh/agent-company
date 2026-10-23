@@ -48,16 +48,33 @@ allowed_tools=(
 # Write and Skill; hooks and auto-memory are turned off via --settings instead, and --setting-sources
 # project,local keeps the user's own plugins and CLAUDE.md out (workers get only their team's skill plugin).
 # The token-saver header stops 9router injecting caveman/ponytail prompts and compressing the worker's instructions.
+# Per-role overrides (combo, effort) set with 9r-config; merged into a temp copy of workers.json.
+tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+role_effort=$(python3 -I - "$company" "$role" "$tmp/agents.json" <<'PY'
+import json, sys
+company, role, out = sys.argv[1:4]
+agents = json.load(open(f"{company}/workers.json"))
+try:
+    override = json.load(open(f"{company}/roles.json")).get(role, {})
+except (OSError, ValueError):
+    override = {}
+if override.get("combo") and role in agents:
+    agents[role]["model"] = override["combo"]
+json.dump(agents, open(out, "w"))
+print(override.get("effort", ""))
+PY
+)
+
 run_json=$(env -i HOME="$HOME" PATH="$PATH" TERM="${TERM:-xterm}" USER="$USER" LANG="${LANG:-en_US.UTF-8}" TMPDIR="${TMPDIR:-/tmp}" \
   ANTHROPIC_BASE_URL=http://localhost:20128/api ANTHROPIC_API_KEY="$(cat "$company/9router.key")" \
   ANTHROPIC_CUSTOM_HEADERS="x-9router-token-saver: off" \
   timeout "${NINER_TIMEOUT:-45m}" claude -p "$brief" \
     --settings '{"disableAllHooks":true,"autoMemoryEnabled":false}' \
     --setting-sources project,local --plugin-dir "$skill_plugin" \
-    --agents "$company/workers.json" --agent "$role" \
+    --agents "$tmp/agents.json" --agent "$role" \
     --append-system-prompt-file "$company/contract.md" --add-dir "${work_dirs[@]}" \
     --mcp-config "$company/mcp.json" --strict-mcp-config \
-    --effort "${NINER_EFFORT:-max}" --permission-mode acceptEdits --allowedTools "${allowed_tools[@]}" \
+    --effort "${NINER_EFFORT:-${role_effort:-max}}" --permission-mode acceptEdits --allowedTools "${allowed_tools[@]}" \
     --output-format json --json-schema "$(cat "$schema")" \
   < /dev/null 2> >(grep -v unrecognized_model >&2)) || { status=$?; echo "$run_json"; echo "9r: $role exited with status $status" >&2; exit $status; }
 

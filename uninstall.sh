@@ -81,6 +81,7 @@ try:
     links += [(repo / "skills" / name, home / ".claude/skills" / name)
               for name in ("engineering", "marketing")]
     links.append((repo / "bin/9r", home / ".local/bin/9r"))
+    links.append((repo / "bin/9r-config", home / ".local/bin/9r-config"))
     for source, destination in links:
         if destination.is_symlink() and destination.resolve() == source.resolve():
             remove(destination)
