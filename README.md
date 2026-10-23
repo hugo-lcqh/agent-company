@@ -30,12 +30,12 @@ Installer kiểm tra `claude`, `python3`, `sqlite3`, `curl`, phiên bản Python
 
 ## Cài nhanh
 
-Ba bước: **clone → cài → kiểm tra**. Thay `<URL_REPO>` bằng URL clone của repo bạn dùng; ví dụ không giả định một remote công khai.
+Ba bước: **clone → cài → kiểm tra**. Repo đang để **private**: người clone cần được mời làm collaborator và đã đăng nhập `gh auth login` hoặc có quyền truy cập Git.
 
 **1. Clone và vào checkout:**
 
 ```bash
-git clone '<URL_REPO>' agent-company
+git clone 'https://github.com/hugo-lcqh/agent-company.git' agent-company
 cd agent-company
 ```
 
