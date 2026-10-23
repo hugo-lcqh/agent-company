@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# 9r <role> "<brief>" — run one company worker on Codex/Antigravity quota through 9router.
+# Prints the worker's Handoff Manifest (schema-enforced), then one status line.
+set -euo pipefail
+company=~/.claude/company
+runs=~/.cache/company-runs   # specs and briefs shared between workers
+mkdir -p "$runs"
+
+if [[ $# -lt 2 ]]; then
+  echo 'usage: 9r <role> "<brief>"   (runs in the current directory)' >&2
+  python3 -c 'import json,sys
+for name, spec in json.load(open(sys.argv[1])).items():
+    print(f"  {name:18} {spec["model"]:9} {spec["description"]}")' "$company/workers.json" >&2
+  exit 2
+fi
+role=$1; shift
+# Task first: Habblaud and session lists title the worker by the brief's opening words.
+brief="$*
+
+Thư mục làm việc: $PWD (mọi đường dẫn tương đối tính từ đây; chỉ tạo/sửa file trong thư mục này)."
+# Only the roles that write specs/briefs may write into the shared runs directory; others just read from it.
+work_dirs=("$PWD")
+[[ $role == architect || $role == strategist ]] && work_dirs+=("$runs")
+case $role in
+  strategist|content|seo_writer|social_growth|design|qc) skill_plugin="$company/plugins/mkt" ;;
+  *) skill_plugin="$company/plugins/eng" ;;
+esac
+schema="$company/schemas/$role.json"
+[[ -f $schema ]] || schema="$company/schemas/manifest.json"
+
+curl -sf -m 5 -o /dev/null http://localhost:20128/v1/models || { echo "9r: 9router is not reachable on :20128" >&2; exit 3; }
+
+# Workers run unattended, so only these shell commands are pre-approved; anything else is denied.
+allowed_tools=(
+  Read Grep Glob Edit Write StructuredOutput Skill "Read(~/.cache/company-runs/**)"
+  "Bash(git status:*)" "Bash(git diff:*)" "Bash(git log:*)" "Bash(git show:*)"
+  "Bash(ls:*)" "Bash(cd:*)" "Bash(cat:*)" "Bash(head:*)" "Bash(tail:*)" "Bash(wc:*)" "Bash(grep:*)"
+  "Bash(pytest:*)" "Bash(python -m pytest:*)" "Bash(python3 -m pytest:*)" "Bash(uv run pytest:*)"
+  "Bash(uv run python -m pytest:*)" "Bash(uv sync:*)" "Bash(ruff:*)" "Bash(uv run ruff:*)"
+  "Bash(npm test:*)" "Bash(npm run test:*)" "Bash(npm run lint:*)" "Bash(npm run build:*)"
+  "Bash(npx playwright test:*)" "Bash(npx vitest:*)" "Bash(npx tsc:*)"
+  "Bash(go test:*)" "Bash(cargo test:*)" "Bash(just test:*)"
+  mcp__company-tools__run_marketing_gate mcp__company-tools__validate_handoff_manifest
+  mcp__company-tools__verify_git_scope mcp__company-tools__get_postiz_channels
+)
+
+# env -i drops the desktop app's auth vars so the 9router key is used. --bare is avoided because it strips
+# Write and Skill; hooks and auto-memory are turned off via --settings instead, and --setting-sources
+# project,local keeps the user's own plugins and CLAUDE.md out (workers get only their team's skill plugin).
+# The token-saver header stops 9router injecting caveman/ponytail prompts and compressing the worker's instructions.
+run_json=$(env -i HOME="$HOME" PATH="$PATH" TERM="${TERM:-xterm}" USER="$USER" LANG="${LANG:-en_US.UTF-8}" TMPDIR="${TMPDIR:-/tmp}" \
+  ANTHROPIC_BASE_URL=http://localhost:20128/api ANTHROPIC_API_KEY="$(cat "$company/9router.key")" \
+  ANTHROPIC_CUSTOM_HEADERS="x-9router-token-saver: off" \
+  timeout "${NINER_TIMEOUT:-45m}" claude -p "$brief" \
+    --settings '{"disableAllHooks":true,"autoMemoryEnabled":false}' \
+    --setting-sources project,local --plugin-dir "$skill_plugin" \
+    --agents "$company/workers.json" --agent "$role" \
+    --append-system-prompt-file "$company/contract.md" --add-dir "${work_dirs[@]}" \
+    --mcp-config "$company/mcp.json" --strict-mcp-config \
+    --effort "${NINER_EFFORT:-max}" --permission-mode acceptEdits --allowedTools "${allowed_tools[@]}" \
+    --output-format json --json-schema "$(cat "$schema")" \
+  < /dev/null 2> >(grep -v unrecognized_model >&2)) || { status=$?; echo "$run_json"; echo "9r: $role exited with status $status" >&2; exit $status; }
+
+# Print a compact manifest (evidence moved to a file) so the dispatcher spends few Claude tokens per worker.
+printf '%s' "$run_json" | (cd "$company" && .venv/bin/python -c 'import json, sys, time, tools
+from pathlib import Path
+role, runs, run = sys.argv[1], Path(sys.argv[2]), json.load(sys.stdin)
+manifest = run.get("structured_output")
+if not manifest:
+    print(run.get("result", ""))
+    print(f"9r: {role} turns={run.get("num_turns")} manifest=missing")
+    sys.exit(1)
+full_path = runs / "manifests" / f"{time.strftime("%Y%m%d-%H%M%S")}-{role}-{manifest.get("task_id", "task")}.json".replace("/", "_")
+full_path.parent.mkdir(parents=True, exist_ok=True)
+full_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1))
+compact = {key: value for key, value in manifest.items() if key != "evidence"}
+compact["evidence"] = f"{len(manifest.get("evidence", []))} items in {full_path}"
+print(json.dumps(compact, ensure_ascii=False, indent=1))
+verdict = tools.validate_handoff_manifest(json.dumps(manifest))
+print(f"9r: {role} turns={run.get("num_turns")} {run.get("duration_ms", 0) // 1000}s manifest={"ok" if verdict["valid"] else "invalid"}")' "$role" "$runs")

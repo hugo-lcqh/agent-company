@@ -1,0 +1,7 @@
+{
+ "w-think":  ["cx/gpt-6-astra", "ag/gemini-4-argon-high", "cx/gpt-6.1-sol", "ag/gemini-3.8-flash-high", "ag/claude-sonnet-4-6"],
+ "w-code":   ["cx/gpt-6-astra", "cx/gpt-6.1-sol", "ag/gemini-4-argon-high", "ag/gemini-3.8-flash-high", "ag/claude-sonnet-4-6"],
+ "w-ui":     ["ag/gemini-4-argon-high", "cx/gpt-6-astra", "cx/gpt-6.1-sol", "ag/gemini-3.8-flash-high", "ag/claude-sonnet-4-6"],
+ "w-review": ["cx/gpt-6-astra", "cx/gpt-6.1-sol", "ag/gemini-4-argon-high", "ag/gemini-3.8-flash-high", "ag/claude-sonnet-4-6"],
+ "w-fast":   ["cx/gpt-6.1-sol", "cx/gpt-6-astra", "ag/gemini-4-argon-high", "ag/gemini-3.8-flash-high", "ag/claude-sonnet-4-6"]
+}

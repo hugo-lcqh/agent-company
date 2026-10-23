@@ -1,0 +1,41 @@
+diff --git a/server/sources/registry.test.ts b/server/sources/registry.test.ts
+index 19671f5..afd1792 100644
+--- a/server/sources/registry.test.ts
++++ b/server/sources/registry.test.ts
+@@ -57,6 +57,13 @@ describe('registro de sessões', () => {
+     expect(docker.poll().entries.map((e) => e.pid).sort()).toEqual([10, 11]);
+   });
+ 
++  it('ignora as sessões do observador do claude-mem', () => {
++    writeFileSync(join(sessions, '30.json'), entry(30));
++    writeFileSync(join(sessions, '31.json'), entry(31, { cwd: '/Users/eu/.claude-mem/observer-sessions/196' }));
++    const reader = new RegistryReader(tmp.dir, { checkPid: false });
++    expect(reader.poll().entries.map((e) => e.pid)).toEqual([30]);
++  });
++
+   it('JSON inválido (gravação em andamento) mantém a última versão boa', () => {
+     const file = join(sessions, '20.json');
+     writeFileSync(file, entry(20, { status: 'busy' }));
+diff --git a/server/sources/registry.ts b/server/sources/registry.ts
+index f057c6a..905c137 100644
+--- a/server/sources/registry.ts
++++ b/server/sources/registry.ts
+@@ -104,6 +104,9 @@ export function pidAlive(pid: number): boolean {
+   }
+ }
+ 
++/** Sessões automáticas que não são agentes de verdade (observador do claude-mem): ficam fora do escritório. */
++const IGNORED_CWD = /[\\/]\.claude-mem[\\/]observer-sessions([\\/]|$)/;
++
+ export interface RegistryPoll {
+   entries: RegistryEntry[];
+   ok: boolean;
+@@ -164,7 +167,7 @@ export class RegistryReader {
+         this.cache.set(file, cached);
+       }
+       const e = cached.entry;
+-      if (!e) continue;
++      if (!e || IGNORED_CWD.test(e.cwd)) continue;
+       if (this.opts.checkPid && !this.isAlive(e.pid)) continue;
+       entries.push(e);
+     }

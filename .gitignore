@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.bak*
+.DS_Store
+# secrets and runtime data: never commit
+9router.key
+postiz.env
+postiz_media.json
+.env

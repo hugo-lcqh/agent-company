@@ -1,0 +1,79 @@
+{
+ "type": "object",
+ "properties": {
+  "task_id": {
+   "type": "string"
+  },
+  "status": {
+   "type": "string",
+   "enum": [
+    "completed",
+    "partial",
+    "blocked",
+    "failed"
+   ]
+  },
+  "summary": {
+   "type": "string",
+   "description": "<= 3 sentences"
+  },
+  "files_changed": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "tests": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "command": {
+      "type": "string"
+     },
+     "result": {
+      "type": "string",
+      "enum": [
+       "pass",
+       "fail",
+       "not_run"
+      ]
+     }
+    },
+    "required": [
+     "command",
+     "result"
+    ]
+   }
+  },
+  "evidence": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "risks": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "requires_decision": {
+   "type": "boolean"
+  },
+  "next_action": {
+   "type": "string"
+  }
+ },
+ "required": [
+  "task_id",
+  "status",
+  "summary",
+  "files_changed",
+  "tests",
+  "evidence",
+  "risks",
+  "requires_decision",
+  "next_action"
+ ]
+}
